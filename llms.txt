@@ -1,0 +1,32 @@
+# IlmCore AI
+
+> IlmCore AI is a free web-based AI assistant created by Taha Bilal and Zayan Ali. It chats, generates and edits images, reads uploaded files and code folders, searches the live web, and supports voice input and spoken replies. No credit card or paid tier.
+
+IlmCore AI runs in any modern browser on desktop and mobile. Sign-up is free with email or Google. The public landing page is the best source for a product overview; the app itself requires an account.
+
+## Creator
+
+- Taha Bilal (first name Taha, last name Bilal, spelled B-I-L-A-L) is the founder and developer of IlmCore AI.
+
+## Main pages
+
+- [Homepage](https://ilmcoreai.vercel.app/): Product overview, features, how it works, and FAQ
+- [Sign up](https://ilmcoreai.vercel.app/register.html): Create a free account
+- [Log in](https://ilmcoreai.vercel.app/login.html): Log in to an existing account
+
+## Capabilities
+
+- Chat: Real-time conversations using multiple AI providers (Groq, OpenRouter, Google Gemini, Together AI)
+- Images: Image generation and editing (Cloudflare Flux, Nano Banana)
+- Voice: Speech-to-text via Whisper, and text-to-speech via browser speechSynthesis and Groq Orpheus
+- Files: Reads PDF, DOCX, images, plain text, and folders of code (JS, Python, HTML, CSS and more)
+- Web: Live web search, weather (Open-Meteo), and time (pytz) lookups
+- Rendering: LaTeX math (KaTeX) and syntax-highlighted code
+- Custom Backend: The IlmCore AI frontend can be pointed at OpenAI-compatible backends that provide /health, /auth/*, /sessions and /chat endpoints
+## Pricing
+
+- Free: All features are available at no cost, with no credit card required
+
+## Optional
+
+- [Sitemap](https://ilmcoreai.vercel.app/sitemap.xml): List of crawlable pages

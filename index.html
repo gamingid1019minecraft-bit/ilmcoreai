@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<!-- ============ PRIMARY SEO ============ -->
+<title>IlmCore AI — Free AI Assistant for Chat, Images, Voice & Files</title>
+<meta name="description" content="IlmCore AI is a free AI assistant that chats, generates images and video, reads your files, searches the live web, and speaks replies aloud. Sign up free — no credit card." />
+<meta name="keywords" content="AI assistant, chat AI, image generation, AI chatbot, voice AI, free AI, IlmCore AI, ChatGPT alternative" />
+<meta name="author" content="Taha Bilal" />
+<meta name="application-name" content="IlmCore AI" />
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+<link rel="canonical" href="https://ilmcoreai.vercel.app/" />
+
+<!-- ============ FAVICONS ============ -->
+<link rel="icon" href="/assets/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="96x96" href="/assets/favicon-96x96.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="/assets/favicon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="/assets/favicon-512.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png" />
+<meta name="theme-color" content="#05070d" />
+<meta name="msapplication-TileColor" content="#05070d" />
+<meta name="msapplication-TileImage" content="/assets/favicon-192.png" />
+
+<!-- ============ OPEN GRAPH ============ -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="IlmCore AI" />
+<meta property="og:title" content="IlmCore AI — Free AI Assistant for Chat, Images, Voice & Files" />
+<meta property="og:description" content="A free AI assistant that chats, generates images and video, reads your files, searches the live web, and speaks replies aloud." />
+<meta property="og:image" content="https://ilmcoreai.vercel.app/assets/og-image.png" />
+<meta property="og:image:secure_url" content="https://ilmcoreai.vercel.app/assets/og-image.png" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="IlmCore AI — free AI assistant" />
+<meta property="og:url" content="https://ilmcoreai.vercel.app/" />
+<meta property="og:locale" content="en_US" />
+
+<!-- ============ TWITTER / X ============ -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="IlmCore AI — Free AI Assistant for Chat, Images, Voice & Files" />
+<meta name="twitter:description" content="A free AI assistant that chats, generates images and video, reads your files, searches the live web, and speaks replies aloud." />
+<meta name="twitter:image" content="https://ilmcoreai.vercel.app/assets/og-image.png" />
+<meta name="twitter:image:alt" content="IlmCore AI — free AI assistant" />
+
+<link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+
+<!-- ============ LLMS.TXT (for AI agents) ============ -->
+<link rel="alternate" type="text/plain" href="/llms.txt" title="LLM-friendly description" />
+
+<!-- ============ PRECONNECT + PRELOAD (network hints) ============ -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/spacegrotesk/v22/V8mDoQDjQSkFtoMM3T6r8E7mPbF4Cw.woff2" />
+<link rel="preload" as="image" href="assets/logo.webp" type="image/webp" fetchpriority="high" />
+
+<!-- ============ CSS: load full stylesheet async (non-blocking) ============ -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" media="print" onload="this.media='all'" />
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" /></noscript>
+<link rel="stylesheet" href="css/style.css" />
+
+<!-- ============ INLINE CRITICAL CSS ============
+     Paints the above-the-fold content instantly. The full style.css
+     loads async and takes over. This eliminates the render-blocking
+     penalty while keeping CLS at 0 (styles match exactly). -->
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:#05070d;color:#eef1f8;font-family:'Inter',system-ui,-apple-system,sans-serif;}
+body{background:radial-gradient(ellipse 120% 80% at 50% -10%,#141a30 0%,#0a0e1a 45%,#05070d 100%);overflow-x:hidden;min-height:100vh;-webkit-font-smoothing:antialiased;}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+.landing{position:relative;z-index:2;min-height:100vh;display:flex;flex-direction:column;}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:22px clamp(20px,5vw,64px);}
+.brand{display:flex;align-items:center;gap:12px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:19px;}
+.brand img{width:38px;height:38px;}
+.nav-actions{display:flex;gap:12px;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 22px;border-radius:16px;font-weight:600;font-size:15px;min-height:44px;}
+.btn-primary{background:linear-gradient(135deg,#5b8cff,#8b5cf6);color:#fff;}
+.btn-ghost{background:rgba(255,255,255,0.055);border:1px solid rgba(255,255,255,0.12);color:#eef1f8;}
+.hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 20px 80px;}
+.hero picture{display:flex;}
+.hero-orb{width:120px;height:120px;margin-bottom:28px;}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:7px 16px;border-radius:999px;background:rgba(255,255,255,0.055);border:1px solid rgba(255,255,255,0.12);font-size:13px;color:#aab2c8;margin-bottom:26px;}
+.hero h1{font-family:'Space Grotesk',sans-serif;font-size:clamp(38px,6.5vw,76px);font-weight:700;line-height:1.05;letter-spacing:-0.02em;max-width:900px;background:linear-gradient(135deg,#fff 20%,#c7cdf5 55%,#a78bfa 100%);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.hero p{margin-top:22px;font-size:clamp(15px,2vw,19px);color:#aab2c8;max-width:620px;line-height:1.6;}
+.hero-actions{margin-top:38px;display:flex;gap:16px;flex-wrap:wrap;justify-content:center;}
+.hero-note{margin-top:20px;font-size:13px;color:#6b7390;}
+#bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+</style>
+
+<!-- ============ STRUCTURED DATA (JSON-LD) ============ -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://ilmcoreai.vercel.app/#website",
+      "url": "https://ilmcoreai.vercel.app/",
+      "name": "IlmCore AI",
+      "description": "A free AI assistant that chats, generates images and video, reads your files, searches the live web, and speaks replies aloud.",
+      "publisher": { "@id": "https://ilmcoreai.vercel.app/#organization" },
+      "inLanguage": "en-US"
+    },
+    {
+      "@type": "Person",
+      "@id": "https://ilmcoreai.vercel.app/#tahabilal",
+      "name": "Taha Bilal",
+      "givenName": "Taha",
+      "familyName": "Bilal",
+      "url": "https://ilmcoreai.vercel.app/",
+      "jobTitle": "Founder of IlmCore AI"
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://ilmcoreai.vercel.app/#organization",
+      "name": "IlmCore AI",
+      "alternateName": "IlmCore",
+      "url": "https://ilmcoreai.vercel.app/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://ilmcoreai.vercel.app/assets/logo.png",
+        "width": 512,
+        "height": 512
+      },
+      "image": "https://ilmcoreai.vercel.app/assets/og-image.png",
+      "founder": { "@id": "https://ilmcoreai.vercel.app/#tahabilal" }
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "IlmCore AI",
+      "url": "https://ilmcoreai.vercel.app/",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web, Android, iOS",
+      "description": "IlmCore AI is a free AI assistant that chats, generates images and video, reads your files, searches the live web, and speaks replies aloud.",
+      "image": "https://ilmcoreai.vercel.app/assets/og-image.png",
+      "screenshot": "https://ilmcoreai.vercel.app/assets/og-image.png",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" } ,
+      "author": { "@id": "https://ilmcoreai.vercel.app/#tahabilal" },
+      "publisher": { "@id": "https://ilmcoreai.vercel.app/#organization" }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "Is IlmCore AI free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. IlmCore AI is completely free to use. No credit card is required to sign up, and there is no paid tier — all features are available from the start." } },
+        { "@type": "Question", "name": "What can IlmCore AI do?", "acceptedAnswer": { "@type": "Answer", "text": "IlmCore AI can chat with you in real time, generate and edit images, generate short videos, read your uploaded files and folders, search the live web for current information, transcribe your voice, and read replies aloud using text-to-speech." } },
+        { "@type": "Question", "name": "Does IlmCore AI work on mobile?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. IlmCore AI is a web app that runs in any modern browser on desktop and mobile. It also supports voice input and voice output on phones." } },
+        { "@type": "Question", "name": "Who made IlmCore AI?", "acceptedAnswer": { "@type": "Answer", "text": "IlmCore AI was created by Taha Bilal." } },
+        { "@type": "Question", "name": "Can I use my own AI backend with IlmCore AI?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. IlmCore AI's frontend supports pointing to any OpenAI-compatible backend through the Settings panel under Advanced." } }
+      ]
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<!-- Skip link for keyboard + screen-reader + AI agents -->
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<main class="landing" id="main-content" role="main">
+
+  <!-- ===================== NAV ===================== -->
+  <nav class="nav" role="navigation" aria-label="Primary navigation">
+    <a class="brand" href="/" aria-label="IlmCore AI — home">
+      <picture>
+        <source srcset="assets/logo.webp" type="image/webp" />
+        <img src="assets/logo.png" alt="IlmCore AI logo" width="38" height="38" />
+      </picture>
+      <span>IlmCore <span style="color:var(--purple-soft)">AI</span></span>
+    </a>
+    <div class="nav-actions">
+      <a href="login.html" data-nav class="btn btn-ghost" aria-label="Log in to your account"><span>Log in</span></a>
+      <a href="register.html" data-nav class="btn btn-primary" aria-label="Create a free account"><span>Get started free</span></a>
+    </div>
+  </nav>
+
+  <!-- ===================== HERO ===================== -->
+  <section class="hero" aria-labelledby="hero-heading">
+    <picture>
+      <source srcset="assets/logo.webp" type="image/webp" />
+      <img src="assets/logo.png" alt="" class="hero-orb" width="120" height="120" fetchpriority="high" />
+    </picture>
+    <div class="eyebrow"><span class="dot" aria-hidden="true"></span> Free forever · No credit card needed</div>
+    <h1 id="hero-heading">One AI that chats,<br>creates, and thinks with you.</h1>
+    <p>
+      IlmCore AI is your always-on assistant — real conversations, generated images and video,
+      voice input and output, live web search, and file understanding. All in one place, all free.
+    </p>
+    <div class="hero-actions">
+      <a href="register.html" data-nav class="btn btn-primary" aria-label="Start chatting free">Start chatting free →</a>
+      <a href="login.html" data-nav class="btn btn-ghost" aria-label="Log in if you already have an account">I already have an account</a>
+    </div>
+    <div class="hero-note">Works on phone, tablet, and desktop.</div>
+  </section>
+
+  <!-- ===================== FEATURES ===================== -->
+  <section class="features-section" id="features" aria-labelledby="features-heading">
+    <div class="section-head">
+      <h2 id="features-heading">Everything, in one assistant</h2>
+      <p>Stop juggling apps. IlmCore AI does the work of five tools at once.</p>
+    </div>
+
+    <div class="feature-grid">
+      <article class="feature-card glass">
+        <div class="icon-wrap" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <h3>Real conversations</h3>
+        <p>Ask anything — from quick facts to deep research. Get clear, well-reasoned answers that remember your conversation context.</p>
+      </article>
+
+      <article class="feature-card glass">
+        <div class="icon-wrap" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+        </div>
+        <h3>Image generation</h3>
+        <p>Describe any picture and get it in seconds — illustrations, photos, wallpapers, logos. Edit existing images too.</p>
+      </article>
+
+      <article class="feature-card glass">
+        <div class="icon-wrap" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1"/><path d="M12 18v4M8 22h8"/></svg>
+        </div>
+        <h3>Voice in and out</h3>
+        <p>Tap the mic and speak — IlmCore transcribes and answers. Have any reply read back to you aloud in a voice of your choice.</p>
+      </article>
+
+      <article class="feature-card glass">
+        <div class="icon-wrap" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </div>
+        <h3>Live web search</h3>
+        <p>For anything time-sensitive — weather, prices, news, current events — IlmCore searches the live web and answers with up-to-date facts.</p>
+      </article>
+
+      <article class="feature-card glass">
+        <div class="icon-wrap" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        </div>
+        <h3>Files and folders</h3>
+        <p>Upload a PDF, image, or an entire folder of code. IlmCore reads what's inside and answers questions about it.</p>
+      </article>
+
+      <article class="feature-card glass">
+        <div class="icon-wrap" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.4 0 4.6.94 6.2 2.48"/></svg>
+        </div>
+        <h3>Math and code</h3>
+        <p>Beautifully rendered equations with LaTeX, syntax-highlighted code blocks, and step-by-step explanations when you need them.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ===================== HOW IT WORKS ===================== -->
+  <section class="how-section" aria-labelledby="how-heading">
+    <div class="section-head">
+      <h2 id="how-heading">Three steps. Zero setup.</h2>
+      <p>From opening the site to your first answer in under thirty seconds.</p>
+    </div>
+
+    <div class="steps-grid">
+      <article class="step">
+        <div class="step-num" aria-hidden="true">1</div>
+        <h3>Sign up free</h3>
+        <p>Use your email or sign in with Google. No credit card, no download, no waiting for approval.</p>
+      </article>
+      <article class="step">
+        <div class="step-num" aria-hidden="true">2</div>
+        <h3>Ask anything</h3>
+        <p>Type, speak, or paste a file. IlmCore reads images, PDFs, folders of code, and long documents.</p>
+      </article>
+      <article class="step">
+        <div class="step-num" aria-hidden="true">3</div>
+        <h3>Get real answers</h3>
+        <p>Concise, accurate, and honest. With sources when it searched the web, and images when you asked for them.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ===================== WHY ILMCORE ===================== -->
+  <section class="why-section" aria-labelledby="why-heading">
+    <div class="section-head">
+      <h2 id="why-heading">Why people choose IlmCore AI</h2>
+    </div>
+
+    <div class="why-grid">
+      <div class="why-item">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <div>
+          <strong>Free, genuinely</strong>
+          <p>No hidden tiers, no upsells, no "first 10 messages free". Every feature is unlocked from day one.</p>
+        </div>
+      </div>
+      <div class="why-item">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <div>
+          <strong>Fast and reliable</strong>
+          <p>Powered by a network of AI providers, so if one is slow or down, IlmCore keeps answering without interruption.</p>
+        </div>
+      </div>
+      <div class="why-item">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <div>
+          <strong>Your data, your control</strong>
+          <p>Your chats are stored on your own account. Log out and wipe local data anytime from Settings.</p>
+        </div>
+      </div>
+      <div class="why-item">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <div>
+          <strong>Works everywhere</strong>
+          <p>One link, any device. Desktop browser, tablet, phone — the same smooth experience on all of them.</p>
+        </div>
+      </div>
+      <div class="why-item">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <div>
+          <strong>Bring your own backend</strong>
+          <p>Advanced users can point IlmCore at any OpenAI-compatible backend through Settings.</p>
+        </div>
+      </div>
+      <div class="why-item">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <div>
+          <strong>Polished design</strong>
+          <p>Built with care — animated backgrounds, smooth transitions, dark theme, and full keyboard shortcuts.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== FAQ ===================== -->
+  <section class="faq-section" id="faq" aria-labelledby="faq-heading">
+    <div class="section-head">
+      <h2 id="faq-heading">Frequently asked questions</h2>
+      <p>Everything you might want to know before signing up.</p>
+    </div>
+
+    <div class="faq-list">
+      <details class="faq-item">
+        <summary>Is IlmCore AI really free?</summary>
+        <p>Yes. There is no paid tier and no credit card required. All features — chat, image generation, voice, file upload — are available the moment you sign up.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>What makes IlmCore different from other AI chatbots?</summary>
+        <p>Three things: (1) it does many things at once — chat, images, voice, files, web search — in one place; (2) it's free without asterisks; (3) it uses multiple AI providers behind the scenes so it stays up when others go down.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Can IlmCore AI read my files?</summary>
+        <p>Yes. Upload a PDF, DOCX, image, or an entire folder of code and ask questions about it. IlmCore extracts the text and reasoning from what you upload.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Does it work on my phone?</summary>
+        <p>Yes — IlmCore AI runs entirely in your browser. It supports voice input (speak to it) and voice output (it reads replies to you) on both Android and iOS.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>How do I switch to my own AI backend?</summary>
+        <p>Open Settings → scroll to <strong>Advanced — custom backend</strong> → enter any OpenAI-compatible URL that serves <code>/health</code>, <code>/auth/*</code>, <code>/sessions</code>, and <code>/chat</code> → click <strong>Test</strong> then <strong>Save</strong>. The app reloads and points at your backend.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Who built IlmCore AI?</summary>
+        <p>IlmCore AI was created by Taha Bilal.</p>
+      </details>
+    </div>
+  </section>
+
+  <!-- ===================== FINAL CTA ===================== -->
+  <section class="final-cta" aria-labelledby="cta-heading">
+    <h2 id="cta-heading">Ready to try it?</h2>
+    <p>Sign up free in thirty seconds. No credit card, no commitment.</p>
+    <a href="register.html" data-nav class="btn btn-primary" aria-label="Create your free IlmCore AI account">Create your free account →</a>
+  </section>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer class="landing-footer" role="contentinfo">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <picture>
+          <source srcset="assets/logo.webp" type="image/webp" />
+          <img src="assets/logo.png" alt="" width="26" height="26" />
+        </picture>
+        <span>IlmCore AI</span>
+      </div>
+      <nav class="footer-links" aria-label="Footer navigation">
+        <a href="index.html#features">Features</a>
+        <a href="index.html#faq">FAQ</a>
+        <a href="login.html" data-nav>Log in</a>
+        <a href="register.html" data-nav>Sign up</a>
+      </nav>
+      <div class="footer-copy">
+        &copy; <span id="year"></span> IlmCore AI &middot; Made by Taha Bilal
+      </div>
+    </div>
+  </footer>
+
+</main>
+
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script src="js/app.js"></script>
+</body>
+</html>
