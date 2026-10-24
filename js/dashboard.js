@@ -489,6 +489,8 @@ function startNewChat() {
   if (isMobile()) setSidebarCollapsed(true);
 }
 el.newChatBtn.addEventListener('click', startNewChat);
+// Coming back via the browser's back/forward cache must also start fresh
+window.addEventListener('pageshow', (e) => { if (e.persisted) startNewChat(); });
 
 function clearChat(showWelcomeScreen) {
   el.chatInner.querySelectorAll('.msg-row').forEach(n => n.remove());
