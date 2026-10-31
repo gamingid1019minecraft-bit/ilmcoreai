@@ -370,6 +370,8 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
       <p>Use IlmCore AI anywhere — your own app, a Discord bot, a website, or a Roblox game. One endpoint, plain JSON.</p>
     </div>
 
+    <p class="api-note" style="text-align:center">Base URL: <code>https://ilmcoreback.vercel.app</code></p>
+
     <h3 class="api-sub">1. Get your API key</h3>
     <p class="api-note">Create a free account, log in to get a session token, then create a key. The key is shown <strong>once</strong>, so copy it and keep it secret. Never put it in client-side code.</p>
     <div class="code-grid">
@@ -389,6 +391,8 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
 # returns {"api_key":"ilm_...", ...}</pre>
       </div>
     </div>
+
+    <p class="api-note" style="margin-top:14px">Manage your keys: <code>GET /v1/keys</code> lists them (previews only) and <code>DELETE /v1/keys/KEY_ID</code> revokes one. Use the same <code>Authorization: Bearer SESSION_TOKEN</code> header as when you created it.</p>
 
     <h3 class="api-sub">2. Send a message</h3>
     <p class="api-note"><code>POST https://ilmcoreback.vercel.app/v1/chat</code> with your key in the <code>Authorization: Bearer ilm_...</code> header (or <code>X-API-Key</code>). The reply comes back as JSON: <code>{"reply": "...", "session_id": "..."}</code>. Send the <code>session_id</code> back next time to keep the conversation going. Leave out <code>max_chars</code> for long answers, and set <code>format</code> to <code>markdown</code> to keep code blocks when you ask for code.</p>
@@ -457,8 +461,21 @@ print(HttpService:JSONDecode(res.Body).reply)</pre>
       </table>
     </div>
 
-    <h3 class="api-sub">Limits and errors</h3>
-    <p class="api-note">Each key gets 20 requests per minute and 500 per day by default. The API is text chat only (no file or image uploads). Common responses: <code>401</code> bad or revoked key, <code>413</code> message too long, <code>429</code> rate limit hit (wait and retry), <code>503</code> all AI providers busy (try again shortly).</p>
+    <h3 class="api-sub">Errors and limits</h3>
+    <div class="table-wrap">
+      <table class="api-table">
+        <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>400</td><td>Missing or invalid <code>message</code>.</td></tr>
+          <tr><td>401</td><td>Missing, invalid or revoked API key.</td></tr>
+          <tr><td>404</td><td><code>session_id</code> not found for this key's owner.</td></tr>
+          <tr><td>413</td><td>Message too long (over 2000 characters).</td></tr>
+          <tr><td>429</td><td>Rate limit hit: 20 requests per minute and 500 per day per key by default. Check the <code>Retry-After</code> header and try again later.</td></tr>
+          <tr><td>503</td><td>All AI providers are busy. Retry shortly.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="api-note" style="margin-top:14px">The API is text chat only (no file or image uploads).</p>
   </section>
 
   <!-- ===================== HOW IT WORKS ===================== -->
