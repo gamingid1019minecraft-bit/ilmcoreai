@@ -721,31 +721,64 @@ function getFileViewer() {
     <div class="file-viewer-backdrop" data-fv-close></div>
     <div class="file-viewer-panel" role="dialog" aria-modal="true" aria-label="File viewer">
       <div class="file-viewer-head">
-        <div class="fv-title">
-          <div class="fv-name"></div>
-          <div class="fv-type"></div>
+        <div class="fv-left">
+          <svg class="fv-panel-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M8 4v16"/></svg>
+          <div class="fv-title"><span class="fv-name"></span><span class="fv-type"></span></div>
         </div>
-        <div class="fv-actions">
-          <button type="button" class="file-btn" data-fv-copy>Copy</button>
-          <button type="button" class="file-btn file-btn-primary" data-fv-download>Download</button>
-          <button type="button" class="file-btn fv-close" data-fv-close aria-label="Close">✕</button>
+        <div class="fv-right">
+          <div class="fv-split">
+            <button type="button" class="fv-copy-main" data-fv-copy>Copy</button>
+            <button type="button" class="fv-chevron" data-fv-menu aria-label="More options" aria-haspopup="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="fv-menu" hidden>
+              <button type="button" data-fv-copy>Copy</button>
+              <button type="button" data-fv-download>Download</button>
+            </div>
+          </div>
+          <button type="button" class="fv-close" data-fv-close aria-label="Close">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
         </div>
       </div>
-      <pre class="fv-code"></pre>
+      <div class="fv-code"></div>
     </div>`;
   document.body.appendChild(v);
   _fileViewer = v;
   return v;
 }
 
+// Split highlighted HTML into lines, closing/reopening <span>s so multi-line tokens stay coloured.
+function highlightToLines(code) {
+  const html = highlightCode(code);
+  const open = [];
+  return html.split('\n').map(line => {
+    const prefix = open.join('');
+    const re = /<span class="([^"]*)">|<\/span>/g;
+    let m;
+    while ((m = re.exec(line)) !== null) {
+      if (m[0] === '</span>') open.pop(); else open.push(m[0]);
+    }
+    return prefix + line + '</span>'.repeat(open.length);
+  });
+}
+
 function openFileViewer(path, content) {
   const v = getFileViewer();
-  const lines = content ? content.split('\n').length : 0;
   _viewerFile = { path, content };
-  v.querySelector('.fv-name').textContent = path;
-  v.querySelector('.fv-type').textContent = `${fileTypeLabel(path)} · ${lines} ${lines === 1 ? 'line' : 'lines'}`;
-  v.querySelector('.fv-code').innerHTML = highlightCode(content);
+  const base = path.split('/').pop() || 'file';
+  const dot = base.lastIndexOf('.');
+  const stem = dot > 0 ? base.slice(0, dot) : base;
+  const ext = dot > 0 ? base.slice(dot + 1) : '';
+  const nameEl = v.querySelector('.fv-name');
+  nameEl.textContent = stem.charAt(0).toUpperCase() + stem.slice(1);
+  nameEl.title = path;
+  v.querySelector('.fv-type').textContent = ext ? ' · ' + ext.toUpperCase() : '';
+  v.querySelector('.fv-code').innerHTML = highlightToLines(content)
+    .map((l, i) => `<div class="fv-line"><span class="fv-ln">${i + 1}</span><span class="fv-lc">${l || ' '}</span></div>`)
+    .join('');
   v.querySelector('.fv-code').scrollTop = 0;
+  v.querySelector('.fv-menu').hidden = true;
   v.hidden = false;
   document.body.classList.add('file-viewer-open');
 }
@@ -767,17 +800,24 @@ document.addEventListener('click', async (e) => {
   const closeBtn = e.target.closest('[data-fv-close]');
   if (closeBtn) { closeFileViewer(); return; }
 
-  const fvCopy = e.target.closest('[data-fv-copy]');
-  if (fvCopy && _viewerFile) {
-    const ok = await copyText(_viewerFile.content);
-    _flashBtn(fvCopy, ok ? 'Copied!' : 'Copy failed');
-    return;
-  }
-  const fvDl = e.target.closest('[data-fv-download]');
-  if (fvDl && _viewerFile) {
-    downloadBlob(_viewerFile.path.split('/').pop() || 'file.txt', new Blob([_viewerFile.content], { type: 'text/plain;charset=utf-8' }));
-    _flashBtn(fvDl, 'Downloaded!');
-    return;
+  if (_fileViewer && !_fileViewer.hidden) {
+    const menu = _fileViewer.querySelector('.fv-menu');
+    if (e.target.closest('[data-fv-menu]')) { menu.hidden = !menu.hidden; return; }
+    const fvCopy = e.target.closest('[data-fv-copy]');
+    if (fvCopy && _viewerFile) {
+      const ok = await copyText(_viewerFile.content);
+      menu.hidden = true;
+      _flashBtn(_fileViewer.querySelector('.fv-copy-main'), ok ? 'Copied!' : 'Copy failed');
+      return;
+    }
+    const fvDl = e.target.closest('[data-fv-download]');
+    if (fvDl && _viewerFile) {
+      downloadBlob(_viewerFile.path.split('/').pop() || 'file.txt', new Blob([_viewerFile.content], { type: 'text/plain;charset=utf-8' }));
+      menu.hidden = true;
+      _flashBtn(_fileViewer.querySelector('.fv-copy-main'), 'Downloaded!');
+      return;
+    }
+    if (!e.target.closest('.fv-split')) menu.hidden = true;
   }
 
   const zipBtn = e.target.closest('.file-zip');
