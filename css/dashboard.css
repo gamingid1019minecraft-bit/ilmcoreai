@@ -470,12 +470,28 @@ body.file-viewer-open { overflow: hidden; }
 .file-viewer[hidden] { display: none; }
 .file-viewer { position: fixed; inset: 0; z-index: 1000; display: flex; justify-content: flex-end; }
 .file-viewer-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); }
-.file-viewer-panel { position: relative; width: min(760px, 100%); height: 100%; display: flex; flex-direction: column; background: #0a0d18; border-left: 1px solid var(--glass-border); box-shadow: -20px 0 60px rgba(0,0,0,0.5); animation: fvIn 180ms var(--ease); }
+.file-viewer-panel { position: relative; width: min(820px, 100%); height: 100%; display: flex; flex-direction: column; background: #161616; border-left: 1px solid rgba(255,255,255,0.1); box-shadow: -20px 0 60px rgba(0,0,0,0.5); animation: fvIn 180ms var(--ease); }
 @keyframes fvIn { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
-.file-viewer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; background: rgba(255,255,255,0.04); border-bottom: 1px solid var(--glass-border); flex-wrap: wrap; }
-.fv-title { min-width: 0; flex: 1 1 160px; }
-.fv-name { font-family: var(--font-mono); font-size: 14px; font-weight: 600; color: var(--text-hi); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fv-type { font-size: 12px; color: var(--text-low); margin-top: 2px; }
-.fv-actions { display: flex; gap: 8px; flex: none; }
-.fv-code { flex: 1; margin: 0; padding: 16px; overflow: auto; font-family: var(--font-mono); font-size: 13px; line-height: 1.6; white-space: pre; tab-size: 4; }
-@media (max-width: 640px) { .file-viewer-panel { width: 100%; border-left: none; } .file-card { max-width: 100%; } }
+.file-viewer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.fv-left { display: flex; align-items: center; gap: 14px; min-width: 0; color: #eaeaea; }
+.fv-panel-icon { flex: none; }
+.fv-title { min-width: 0; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fv-name { color: #f2f2f2; font-weight: 500; }
+.fv-type { color: #8d8d8d; font-size: 15px; }
+.fv-right { display: flex; align-items: center; gap: 10px; flex: none; }
+.fv-split { position: relative; display: flex; align-items: stretch; border-radius: 12px; background: #2c2c2e; overflow: visible; }
+.fv-split > button { color: #f2f2f2; font-size: 16px; font-weight: 500; padding: 10px 16px; min-height: 44px; }
+.fv-split .fv-copy-main { border-radius: 12px 0 0 12px; min-width: 76px; }
+.fv-split .fv-chevron { display: flex; align-items: center; padding: 0 12px; border-radius: 0 12px 12px 0; border-left: 1px solid rgba(255,255,255,0.08); }
+.fv-split > button:hover { background: #3a3a3d; }
+.fv-menu { position: absolute; top: calc(100% + 6px); right: 0; min-width: 150px; padding: 6px; border-radius: 12px; background: #2c2c2e; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 12px 30px rgba(0,0,0,0.5); z-index: 5; }
+.fv-menu[hidden] { display: none; }
+.fv-menu button { display: block; width: 100%; text-align: left; padding: 10px 12px; border-radius: 8px; color: #f2f2f2; font-size: 15px; }
+.fv-menu button:hover { background: #3a3a3d; }
+.fv-close { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; color: #eaeaea; }
+.fv-close:hover { background: rgba(255,255,255,0.08); }
+.fv-code { flex: 1; overflow: auto; padding: 14px 0 40px; font-family: var(--font-mono); font-size: 14px; line-height: 1.65; }
+.fv-line { display: flex; align-items: flex-start; }
+.fv-ln { flex: none; width: 52px; padding-right: 16px; text-align: right; color: #6f6f6f; user-select: none; border-right: 1px solid rgba(255,255,255,0.08); margin-right: 14px; }
+.fv-lc { flex: 1; min-width: 0; padding-right: 16px; white-space: pre-wrap; overflow-wrap: anywhere; color: #e8e8e8; }
+@media (max-width: 640px) { .file-viewer-panel { width: 100%; border-left: none; } .file-card { max-width: 100%; } .fv-split > button { font-size: 15px; } }
