@@ -590,6 +590,148 @@ function buildSourceCards(urls) {
   return `<div class="sources-block"><div class="sources-label">Sources</div><div class="sources-list">${cards}</div></div>`;
 }
 
+
+/* ---------- DOWNLOADABLE FILE CARDS ([FILE: path] ... [/FILE]) ---------- */
+const FILE_BLOCK_RE = /\[FILE:\s*([^\]\n]+?)\s*\]\s*\n?([\s\S]*?)\[\/FILE\]/g;
+
+function cleanFileBody(body) {
+  let b = (body || '').replace(/^\n/, '');
+  const fenced = b.match(/^\s*```[\w+-]*\n([\s\S]*?)\n?```\s*$/);
+  if (fenced) b = fenced[1];
+  return b.replace(/\s+$/, '');
+}
+
+// Pulls file blocks out of a reply. Handles a half-streamed (unclosed) block too.
+function extractFileBlocks(text) {
+  const files = [];
+  const mark = '\n\n\u0000FILEGROUP\u0000\n\n';
+  let out = text.replace(FILE_BLOCK_RE, (_, path, body) => {
+    files.push({ path: path.trim(), content: cleanFileBody(body), done: true });
+    return files.length === 1 ? mark : '';
+  });
+  const open = out.match(/\[FILE:\s*([^\]\n]+?)\s*\]\s*\n?([\s\S]*)$/);
+  if (open) {
+    const body = open[2].replace(/\[\/?F?I?L?E?\]?$/, '');
+    files.push({ path: open[1].trim(), content: body.replace(/^\n/, ''), done: false });
+    out = out.slice(0, open.index) + (files.length === 1 ? mark : '');
+  } else {
+    out = out.replace(/\[FILE:?[^\]\n]*$/, '');
+  }
+  return { text: out, files };
+}
+
+function renderFileGroup(files) {
+  const cards = files.map(f => {
+    const name = f.path.split('/').pop() || 'file.txt';
+    const lines = f.content ? f.content.split('\n').length : 0;
+    const body = f.done ? highlightCode(f.content) : escapeHtml(f.content);
+    return `<div class="file-card" data-path="${escapeHtml(f.path)}" data-code="${encodeURIComponent(f.content)}">
+      <div class="file-card-head">
+        <div class="file-card-info">
+          <span class="file-card-icon" aria-hidden="true">📄</span>
+          <div class="file-card-text">
+            <div class="file-card-name" title="${escapeHtml(f.path)}">${escapeHtml(f.path)}</div>
+            <div class="file-card-meta">${f.done ? lines + (lines === 1 ? ' line' : ' lines') : 'Writing…'}</div>
+          </div>
+        </div>
+        ${f.done ? `<div class="file-card-actions">
+          <button type="button" class="file-btn file-copy">Copy</button>
+          <button type="button" class="file-btn file-btn-primary file-dl" data-name="${escapeHtml(name)}">Download</button>
+        </div>` : ''}
+      </div>
+      <details class="file-card-body"${f.done ? '' : ' open'}>
+        <summary>${f.done ? 'View code' : 'Live preview'}</summary>
+        <pre>${body}</pre>
+      </details>
+    </div>`;
+  }).join('');
+  const zipBtn = files.length > 1 && files.every(f => f.done)
+    ? `<button type="button" class="file-btn file-btn-primary file-zip">Download all (.zip)</button>` : '';
+  return `<div class="file-group">${cards}${zipBtn ? `<div class="file-group-foot">${zipBtn}</div>` : ''}</div>`;
+}
+
+const _CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+  return t;
+})();
+function _crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = _CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+// Minimal "store" zip writer so "Download all" works with no server and no library.
+function buildZip(files) {
+  const enc = new TextEncoder();
+  const parts = [], central = [];
+  let offset = 0;
+  files.forEach(f => {
+    const nameB = enc.encode(f.path.replace(/^[/\\]+/, '').replace(/\.\.[/\\]/g, ''));
+    const data = enc.encode(f.content);
+    const crc = _crc32(data);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true);
+    lh.setUint16(10, 0, true); lh.setUint16(12, 0x21, true);
+    lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true);
+    lh.setUint16(26, nameB.length, true);
+    parts.push(lh.buffer, nameB, data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+    ch.setUint16(14, 0x21, true); ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true);
+    ch.setUint16(28, nameB.length, true); ch.setUint32(42, offset, true);
+    central.push(ch.buffer, nameB);
+    offset += 30 + nameB.length + data.length;
+  });
+  const cdSize = central.reduce((n, p) => n + p.byteLength, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+  end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, end.buffer], { type: 'application/zip' });
+}
+
+function downloadBlob(name, blob) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+}
+
+function _flashBtn(btn, text) {
+  if (!btn.dataset.orig) btn.dataset.orig = btn.textContent;
+  btn.textContent = text;
+  clearTimeout(btn._t);
+  btn._t = setTimeout(() => { btn.textContent = btn.dataset.orig; }, 1400);
+}
+
+// Event delegation so the buttons keep working after streaming / history re-renders
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.file-copy, .file-dl, .file-zip');
+  if (!btn) return;
+  e.preventDefault();
+  if (btn.classList.contains('file-zip')) {
+    const group = btn.closest('.file-group');
+    const files = [...group.querySelectorAll('.file-card')].map(c => ({
+      path: c.dataset.path, content: decodeURIComponent(c.dataset.code || '')
+    }));
+    downloadBlob('project.zip', buildZip(files));
+    _flashBtn(btn, 'Downloaded!');
+    return;
+  }
+  const card = btn.closest('.file-card');
+  let code = '';
+  try { code = decodeURIComponent(card.dataset.code || ''); } catch (_) {}
+  if (btn.classList.contains('file-copy')) {
+    const ok = await copyText(code);
+    _flashBtn(btn, ok ? 'Copied!' : 'Copy failed');
+  } else {
+    downloadBlob(btn.dataset.name || 'file.txt', new Blob([code], { type: 'text/plain;charset=utf-8' }));
+    _flashBtn(btn, 'Downloaded!');
+  }
+});
+
 function renderMarkdown(text) {
   if (!text) return '';
   const sourceBlocks = [];
@@ -602,8 +744,9 @@ function renderMarkdown(text) {
     }
   );
 
+  const fileExtract = extractFileBlocks(text0);
   const blocks = [];
-  let src = text0.replace(/```(\w+)?\n?([\s\S]*?)```/g, (_, lang, code) => {
+  let src = fileExtract.text.replace(/```(\w+)?\n?([\s\S]*?)```/g, (_, lang, code) => {
     blocks.push({ lang: (lang || 'text').trim(), code: code.replace(/\n$/, '') });
     return `\u0000CODEBLOCK${blocks.length - 1}\u0000`;
   });
@@ -668,6 +811,7 @@ function renderMarkdown(text) {
     if (/\u0000CODEBLOCK\d+\u0000/.test(chunk.trim())) return chunk;
     if (/\u0000MATHBLOCK\d+\u0000/.test(chunk.trim())) return chunk;
     if (/\u0000SOURCEBLOCK\d+\u0000/.test(chunk.trim())) return chunk;
+    if (/\u0000FILEGROUP\u0000/.test(chunk.trim())) return chunk;
     const withBreaks = chunk.trim().replace(/\n/g, '<br>');
     return withBreaks ? `<p>${withBreaks}</p>` : '';
   }).join('\n');
@@ -687,6 +831,7 @@ function renderMarkdown(text) {
     </div>`;
   });
 
+  if (fileExtract.files.length) src = src.replace(/\u0000FILEGROUP\u0000/g, () => renderFileGroup(fileExtract.files));
   src = src.replace(/\u0000MATHBLOCK(\d+)\u0000/g, (_, i) => mathBlocks[Number(i)]);
   src = src.replace(/\u0000SOURCEBLOCK(\d+)\u0000/g, (_, i) => sourceBlocks[Number(i)]);
 
