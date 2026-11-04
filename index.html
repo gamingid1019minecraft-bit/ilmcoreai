@@ -7,7 +7,7 @@
 <!-- ============ PRIMARY SEO ============ -->
 <title>IlmCore AI — Free AI Assistant with Free API, Roblox & Minecraft</title>
 <meta name="description" content="IlmCore AI is a free AI assistant made by Taha Bilal and Zayan Ali. It chats, generates images and video, reads your files, searches the live web, and speaks replies aloud. Free API plus Roblox and Minecraft support. No credit card." />
-<meta name="keywords" content="free AI API, Roblox AI, Minecraft AI, Roblox chatbot, AI assistant, chat AI, image generation, AI chatbot, voice AI, free AI, IlmCore AI, ChatGPT alternative" />
+<meta name="keywords" content="free AI API, Roblox AI, Minecraft AI, Roblox chatbot, AI assistant, chat AI, image generation, AI chatbot, voice AI, free AI, IlmCore AI, downloadable code files, ChatGPT alternative" />
 <meta name="author" content="Taha Bilal, Zayan Ali" />
 <meta name="application-name" content="IlmCore AI" />
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
@@ -164,7 +164,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
         { "@type": "Question", "name": "Does IlmCore AI work on mobile?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. IlmCore AI is a web app that runs in any modern browser on desktop and mobile. It also supports voice input and voice output on phones." } },
         { "@type": "Question", "name": "Who made IlmCore AI?", "acceptedAnswer": { "@type": "Answer", "text": "IlmCore AI was created by Taha Bilal (founder) and Zayan Ali (co-founder)." } },
         { "@type": "Question", "name": "Can I use my own AI backend with IlmCore AI?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. IlmCore AI's frontend supports pointing to any OpenAI-compatible backend through the Settings panel under Advanced." } },
-        { "@type": "Question", "name": "Can IlmCore AI write long code?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. IlmCore AI can write long code, such as full scripts and programs, in a single reply." } },
+        { "@type": "Question", "name": "Can IlmCore AI write long code?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. IlmCore AI can write long code, such as full scripts and programs, in a single reply. Files arrive as cards you can open in a code viewer, then copy or download, and multi-file projects download as a .zip." } },
         { "@type": "Question", "name": "Does IlmCore AI have an API?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. IlmCore AI has a free public API. Create an API key, then send a POST request to /v1/chat with your message and get the AI reply back as JSON. It works from any language, including Python, JavaScript, curl and Roblox Luau." } },
         { "@type": "Question", "name": "Is IlmCore AI in Roblox?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. IlmCore AI is built into the Roblox game Troll is Pinning Tower with Ai, made with Tahabilal012, so players can talk to the AI inside the game by typing !ai followed by their question." } },
         { "@type": "Question", "name": "Is IlmCore AI in Minecraft?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. IlmCore AI is available in Minecraft on the server cherrybean.funserver.top. Type /msg IlmCoreAi followed by your question to talk to it." } }
@@ -252,6 +252,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
       <span class="pill">🎮 Roblox</span>
       <span class="pill">⛏️ Minecraft</span>
       <span class="pill">💻 Long code</span>
+      <span class="pill">📄 Copy &amp; download files</span>
     </div>
     <div class="hero-actions">
       <a href="register.html" data-nav class="btn btn-primary" aria-label="Start chatting free">Start chatting free →</a>
@@ -315,6 +316,13 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;color:inhe
         </div>
         <h3>Math and code</h3>
         <p>Ask for a full script or program and get long code in a single reply. Plus beautifully rendered LaTeX equations, syntax-highlighted code blocks, and step-by-step explanations when you need them.</p>
+      </article>
+      <article class="feature-card glass">
+        <div class="icon-wrap" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 12v6M9 15l3 3 3-3"/></svg>
+        </div>
+        <h3>Files you can copy or download</h3>
+        <p>Ask for a script, web page or whole project and it arrives as a file card. Tap it to open a clean code viewer with line numbers, then copy it or download it. Multi-file projects download as one .zip.</p>
       </article>
       <article class="feature-card glass">
         <div class="icon-wrap" aria-hidden="true">
@@ -565,7 +573,7 @@ print(HttpService:JSONDecode(res.Body).reply)</pre>
         <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         <div>
           <strong>Long code in one reply</strong>
-          <p>Ask for a whole script or program and IlmCore writes it in a single reply, with syntax highlighting.</p>
+          <p>Ask for a whole script or program and IlmCore writes it in a single reply, as a file card you can open, copy or download.</p>
         </div>
       </div>
       <div class="why-item">
@@ -617,7 +625,7 @@ print(HttpService:JSONDecode(res.Body).reply)</pre>
 
       <details class="faq-item">
         <summary>Can IlmCore AI write long code?</summary>
-        <p>Yes. Ask for a full script, app or project and it writes the long code in a single reply, in syntax-highlighted code blocks. You can also ask for downloadable files.</p>
+        <p>Yes. Ask for a full script, app or project and it writes the long code in a single reply, in syntax-highlighted code blocks. Longer code and full projects come as file cards: tap one to open it in a viewer with line numbers, then copy it or download it. Projects with several files download together as a .zip.</p>
       </details>
 
       <details class="faq-item">
