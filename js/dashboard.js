@@ -1310,13 +1310,33 @@ async function requestAssistantReply(text, image, file, folder) {
       }
 
       if (data && data.file_url) {
-        const card = document.createElement('a');
-        card.href = /^https?:\/\//i.test(data.file_url) ? data.file_url : IlmAPI.BASE_URL + data.file_url;
-        card.download = data.file_label || 'download.zip';
-        card.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border, rgba(255,255,255,0.12));text-decoration:none;color:inherit;max-width:260px;';
-        card.innerHTML = `<span style="font-size:20px;">📦</span><span style="font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(data.file_label || 'Download')}</span>`;
-        bubble.appendChild(card);
-        scrollToBottom();
+        // Older backends send a download link instead of [FILE] blocks.
+        // Single files: fetch the text and show the same click-to-open viewer card.
+        // Zips (several files) or fetch failures: fall back to a plain download link.
+        const fileHref = /^https?:\/\//i.test(data.file_url) ? data.file_url : IlmAPI.BASE_URL + data.file_url;
+        const fileLabel = data.file_label || 'download.zip';
+        const addDownloadLink = () => {
+          const card = document.createElement('a');
+          card.href = fileHref;
+          card.download = fileLabel;
+          card.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border, rgba(255,255,255,0.12));text-decoration:none;color:inherit;max-width:260px;';
+          card.innerHTML = `<span style="font-size:20px;">📦</span><span style="font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(fileLabel)}</span>`;
+          bubble.appendChild(card);
+          scrollToBottom();
+        };
+        if (/\.zip$/i.test(fileLabel)) {
+          addDownloadLink();
+        } else {
+          fetch(fileHref)
+            .then(r => { if (!r.ok) throw new Error('fetch failed'); return r.text(); })
+            .then(text => {
+              const holder = document.createElement('div');
+              holder.innerHTML = renderFileGroup([{ path: fileLabel, content: text.replace(/\s+$/, ''), done: true }]);
+              bubble.appendChild(holder.firstElementChild);
+              scrollToBottom();
+            })
+            .catch(addDownloadLink);
+        }
       }
 
       if (settings.autoNarrate) {
