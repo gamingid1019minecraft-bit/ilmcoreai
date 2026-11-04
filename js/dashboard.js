@@ -620,29 +620,31 @@ function extractFileBlocks(text) {
   return { text: out, files };
 }
 
+const FILE_TYPES = {
+  py: 'Python', js: 'JavaScript', mjs: 'JavaScript', jsx: 'React JSX', ts: 'TypeScript', tsx: 'React TSX',
+  html: 'HTML', htm: 'HTML', css: 'CSS', json: 'JSON', md: 'Markdown', txt: 'Text', csv: 'CSV', xml: 'XML',
+  yml: 'YAML', yaml: 'YAML', sh: 'Shell', bat: 'Batch', java: 'Java', c: 'C', cpp: 'C++', h: 'C Header',
+  cs: 'C#', go: 'Go', rs: 'Rust', php: 'PHP', rb: 'Ruby', swift: 'Swift', kt: 'Kotlin', dart: 'Dart',
+  lua: 'Lua', luau: 'Luau', sql: 'SQL', env: 'Env', toml: 'TOML', ini: 'Config', gitignore: 'Git ignore'
+};
+function fileTypeLabel(path) {
+  const name = (path.split('/').pop() || '').toLowerCase();
+  const ext = name.includes('.') ? name.split('.').pop() : name.replace(/^\./, '');
+  return FILE_TYPES[ext] || (ext ? ext.toUpperCase() : 'File');
+}
+
 function renderFileGroup(files) {
   const cards = files.map(f => {
-    const name = f.path.split('/').pop() || 'file.txt';
     const lines = f.content ? f.content.split('\n').length : 0;
-    const body = f.done ? highlightCode(f.content) : escapeHtml(f.content);
-    return `<div class="file-card" data-path="${escapeHtml(f.path)}" data-code="${encodeURIComponent(f.content)}">
-      <div class="file-card-head">
-        <div class="file-card-info">
-          <span class="file-card-icon" aria-hidden="true">📄</span>
-          <div class="file-card-text">
-            <div class="file-card-name" title="${escapeHtml(f.path)}">${escapeHtml(f.path)}</div>
-            <div class="file-card-meta">${f.done ? lines + (lines === 1 ? ' line' : ' lines') : 'Writing…'}</div>
-          </div>
-        </div>
-        ${f.done ? `<div class="file-card-actions">
-          <button type="button" class="file-btn file-copy">Copy</button>
-          <button type="button" class="file-btn file-btn-primary file-dl" data-name="${escapeHtml(name)}">Download</button>
-        </div>` : ''}
+    const type = fileTypeLabel(f.path);
+    const meta = f.done ? `${type} · ${lines} ${lines === 1 ? 'line' : 'lines'}` : `${type} · Writing…`;
+    return `<div class="file-card${f.done ? '' : ' is-writing'}" ${f.done ? 'role="button" tabindex="0"' : ''} data-path="${escapeHtml(f.path)}" data-code="${encodeURIComponent(f.content)}">
+      <span class="file-card-icon" aria-hidden="true">📄</span>
+      <div class="file-card-text">
+        <div class="file-card-name" title="${escapeHtml(f.path)}">${escapeHtml(f.path)}</div>
+        <div class="file-card-meta">${escapeHtml(meta)}</div>
       </div>
-      <details class="file-card-body"${f.done ? '' : ' open'}>
-        <summary>${f.done ? 'View code' : 'Live preview'}</summary>
-        <pre>${body}</pre>
-      </details>
+      <span class="file-card-open" aria-hidden="true">${f.done ? 'Open ›' : '<span class="file-spinner"></span>'}</span>
     </div>`;
   }).join('');
   const zipBtn = files.length > 1 && files.every(f => f.done)
@@ -706,29 +708,95 @@ function _flashBtn(btn, text) {
   btn._t = setTimeout(() => { btn.textContent = btn.dataset.orig; }, 1400);
 }
 
-// Event delegation so the buttons keep working after streaming / history re-renders
+/* ---------- In-page file viewer (opens on the same page, no navigation) ---------- */
+let _fileViewer = null;
+let _viewerFile = null;
+
+function getFileViewer() {
+  if (_fileViewer) return _fileViewer;
+  const v = document.createElement('div');
+  v.className = 'file-viewer';
+  v.hidden = true;
+  v.innerHTML = `
+    <div class="file-viewer-backdrop" data-fv-close></div>
+    <div class="file-viewer-panel" role="dialog" aria-modal="true" aria-label="File viewer">
+      <div class="file-viewer-head">
+        <div class="fv-title">
+          <div class="fv-name"></div>
+          <div class="fv-type"></div>
+        </div>
+        <div class="fv-actions">
+          <button type="button" class="file-btn" data-fv-copy>Copy</button>
+          <button type="button" class="file-btn file-btn-primary" data-fv-download>Download</button>
+          <button type="button" class="file-btn fv-close" data-fv-close aria-label="Close">✕</button>
+        </div>
+      </div>
+      <pre class="fv-code"></pre>
+    </div>`;
+  document.body.appendChild(v);
+  _fileViewer = v;
+  return v;
+}
+
+function openFileViewer(path, content) {
+  const v = getFileViewer();
+  const lines = content ? content.split('\n').length : 0;
+  _viewerFile = { path, content };
+  v.querySelector('.fv-name').textContent = path;
+  v.querySelector('.fv-type').textContent = `${fileTypeLabel(path)} · ${lines} ${lines === 1 ? 'line' : 'lines'}`;
+  v.querySelector('.fv-code').innerHTML = highlightCode(content);
+  v.querySelector('.fv-code').scrollTop = 0;
+  v.hidden = false;
+  document.body.classList.add('file-viewer-open');
+}
+function closeFileViewer() {
+  if (_fileViewer) _fileViewer.hidden = true;
+  document.body.classList.remove('file-viewer-open');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && _fileViewer && !_fileViewer.hidden) { closeFileViewer(); return; }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('file-card') && !e.target.classList.contains('is-writing')) {
+    e.preventDefault();
+    e.target.click();
+  }
+});
+
+// Event delegation so everything keeps working after streaming / history re-renders
 document.addEventListener('click', async (e) => {
-  const btn = e.target.closest('.file-copy, .file-dl, .file-zip');
-  if (!btn) return;
-  e.preventDefault();
-  if (btn.classList.contains('file-zip')) {
-    const group = btn.closest('.file-group');
+  const closeBtn = e.target.closest('[data-fv-close]');
+  if (closeBtn) { closeFileViewer(); return; }
+
+  const fvCopy = e.target.closest('[data-fv-copy]');
+  if (fvCopy && _viewerFile) {
+    const ok = await copyText(_viewerFile.content);
+    _flashBtn(fvCopy, ok ? 'Copied!' : 'Copy failed');
+    return;
+  }
+  const fvDl = e.target.closest('[data-fv-download]');
+  if (fvDl && _viewerFile) {
+    downloadBlob(_viewerFile.path.split('/').pop() || 'file.txt', new Blob([_viewerFile.content], { type: 'text/plain;charset=utf-8' }));
+    _flashBtn(fvDl, 'Downloaded!');
+    return;
+  }
+
+  const zipBtn = e.target.closest('.file-zip');
+  if (zipBtn) {
+    e.preventDefault();
+    const group = zipBtn.closest('.file-group');
     const files = [...group.querySelectorAll('.file-card')].map(c => ({
       path: c.dataset.path, content: decodeURIComponent(c.dataset.code || '')
     }));
     downloadBlob('project.zip', buildZip(files));
-    _flashBtn(btn, 'Downloaded!');
+    _flashBtn(zipBtn, 'Downloaded!');
     return;
   }
-  const card = btn.closest('.file-card');
-  let code = '';
-  try { code = decodeURIComponent(card.dataset.code || ''); } catch (_) {}
-  if (btn.classList.contains('file-copy')) {
-    const ok = await copyText(code);
-    _flashBtn(btn, ok ? 'Copied!' : 'Copy failed');
-  } else {
-    downloadBlob(btn.dataset.name || 'file.txt', new Blob([code], { type: 'text/plain;charset=utf-8' }));
-    _flashBtn(btn, 'Downloaded!');
+
+  const card = e.target.closest('.file-card');
+  if (card && !card.classList.contains('is-writing')) {
+    let code = '';
+    try { code = decodeURIComponent(card.dataset.code || ''); } catch (_) {}
+    openFileViewer(card.dataset.path, code);
   }
 });
 
@@ -1203,7 +1271,7 @@ async function requestAssistantReply(text, image, file, folder) {
 
       if (data && data.file_url) {
         const card = document.createElement('a');
-        card.href = IlmAPI.BASE_URL + data.file_url;
+        card.href = /^https?:\/\//i.test(data.file_url) ? data.file_url : IlmAPI.BASE_URL + data.file_url;
         card.download = data.file_label || 'download.zip';
         card.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border, rgba(255,255,255,0.12));text-decoration:none;color:inherit;max-width:260px;';
         card.innerHTML = `<span style="font-size:20px;">📦</span><span style="font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(data.file_label || 'Download')}</span>`;
