@@ -691,6 +691,45 @@ function buildZip(files) {
   return new Blob([...parts, ...central, end.buffer], { type: 'application/zip' });
 }
 
+// Minimal zip reader (stored + deflate) so zips from the backend can be opened in the page.
+async function readZip(buf) {
+  const dv = new DataView(buf);
+  const u8 = new Uint8Array(buf);
+  let eocd = -1;
+  for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 66000); i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('not a zip');
+  const count = dv.getUint16(eocd + 10, true);
+  let p = dv.getUint32(eocd + 16, true);
+  const dec = new TextDecoder('utf-8');
+  const files = [];
+  for (let n = 0; n < count; n++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) break;
+    const method = dv.getUint16(p + 10, true);
+    const compSize = dv.getUint32(p + 20, true);
+    const nameLen = dv.getUint16(p + 28, true);
+    const extraLen = dv.getUint16(p + 30, true);
+    const commentLen = dv.getUint16(p + 32, true);
+    const localOff = dv.getUint32(p + 42, true);
+    const name = dec.decode(u8.subarray(p + 46, p + 46 + nameLen));
+    p += 46 + nameLen + extraLen + commentLen;
+    if (name.endsWith('/')) continue;
+    const lNameLen = dv.getUint16(localOff + 26, true);
+    const lExtraLen = dv.getUint16(localOff + 28, true);
+    const start = localOff + 30 + lNameLen + lExtraLen;
+    const raw = u8.subarray(start, start + compSize);
+    let bytes;
+    if (method === 0) bytes = raw;
+    else if (method === 8) {
+      const stream = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+    } else continue;
+    files.push({ path: name, content: dec.decode(bytes).replace(/\s+$/, ''), done: true });
+  }
+  return files;
+}
+
 function downloadBlob(name, blob) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1324,19 +1363,23 @@ async function requestAssistantReply(text, image, file, folder) {
           bubble.appendChild(card);
           scrollToBottom();
         };
-        if (/\.zip$/i.test(fileLabel)) {
-          addDownloadLink();
-        } else {
-          fetch(fileHref)
-            .then(r => { if (!r.ok) throw new Error('fetch failed'); return r.text(); })
-            .then(text => {
-              const holder = document.createElement('div');
-              holder.innerHTML = renderFileGroup([{ path: fileLabel, content: text.replace(/\s+$/, ''), done: true }]);
-              bubble.appendChild(holder.firstElementChild);
-              scrollToBottom();
-            })
-            .catch(addDownloadLink);
-        }
+        fetch(fileHref)
+          .then(r => { if (!r.ok) throw new Error('fetch failed'); return r.arrayBuffer(); })
+          .then(async (buf) => {
+            const head = new Uint8Array(buf.slice(0, 2));
+            let files;
+            if (head[0] === 0x50 && head[1] === 0x4B) {
+              files = await readZip(buf);           // zip from the backend: open it here
+            } else {
+              files = [{ path: fileLabel, content: new TextDecoder().decode(buf).replace(/\s+$/, ''), done: true }];
+            }
+            if (!files.length) throw new Error('empty');
+            const holder = document.createElement('div');
+            holder.innerHTML = renderFileGroup(files);
+            bubble.appendChild(holder.firstElementChild);
+            scrollToBottom();
+          })
+          .catch(addDownloadLink);
       }
 
       if (settings.autoNarrate) {
