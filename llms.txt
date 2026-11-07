@@ -10,6 +10,10 @@ IlmCore AI runs in any modern browser on desktop and mobile (Web, Android, iOS).
 - Zayan Ali is the co-founder of IlmCore AI.
 - The Roblox game "Troll is Pinning Tower with Ai" was made with Tahabilal012.
 
+## Other creations
+
+- Visit https://ilmcorehub.vercel.app/ for other creations by the IlmCore team besides IlmCore AI.
+
 ## Main pages
 
 - [Homepage](https://ilmcoreai.vercel.app/): Product overview, features, API docs, Roblox and Minecraft info, how it works, FAQ, and founders
@@ -18,6 +22,7 @@ IlmCore AI runs in any modern browser on desktop and mobile (Web, Android, iOS).
 - [FAQ](https://ilmcoreai.vercel.app/#faq): Frequently asked questions
 - [YouTube](https://www.youtube.com/@IlmCoreHub): IlmCore AI's official YouTube channel (@IlmCoreHub)
 - [Roblox game](https://www.roblox.com/games/95865111733633/Troll-is-Pinning-tower-With-AI): Troll is Pinning Tower with Ai, with IlmCore AI built in
+- [IlmCore Hub](https://ilmcorehub.vercel.app/): More creations by the IlmCore team
 - [Sign up](https://ilmcoreai.vercel.app/register.html): Create a free account
 - [Log in](https://ilmcoreai.vercel.app/login.html): Log in to an existing account
 
