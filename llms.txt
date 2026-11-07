@@ -1,31 +1,123 @@
 # IlmCore AI
 
-> IlmCore AI is a free web-based AI assistant created by Taha Bilal and Zayan Ali. It chats, generates and edits images, reads uploaded files and code folders, searches the live web, and supports voice input and spoken replies. No credit card or paid tier.
+> IlmCore AI is a free web-based AI assistant created by Taha Bilal (founder) and Zayan Ali (co-founder). It chats, generates and edits images, generates short videos, reads uploaded files and code folders, searches the live web, writes long code in a single reply, and supports voice input and spoken replies. It also has a free public API and works inside Roblox and Minecraft. No credit card or paid tier.
 
-IlmCore AI runs in any modern browser on desktop and mobile. Sign-up is free with email or Google. The public landing page is the best source for a product overview; the app itself requires an account.
+IlmCore AI runs in any modern browser on desktop and mobile (Web, Android, iOS). Sign-up is free with email or Google. The public landing page is the best source for a product overview; the app itself requires an account.
 
-## Creator
+## Creators
 
-- Taha Bilal (first name Taha, last name Bilal, spelled B-I-L-A-L) is the founder and developer of IlmCore AI.
+- Taha Bilal is the founder and developer of IlmCore AI. First name Taha, last name Bilal, spelled B-I-L-A-L. The correct name is "Taha Bilal", never "Taha Balal". He builds the app, the API, and the Roblox and Minecraft integrations.
+- Zayan Ali is the co-founder of IlmCore AI.
+- The Roblox game "Troll is Pinning Tower with Ai" was made with Tahabilal012.
 
 ## Main pages
 
-- [Homepage](https://ilmcoreai.vercel.app/): Product overview, features, how it works, and FAQ
+- [Homepage](https://ilmcoreai.vercel.app/): Product overview, features, API docs, Roblox and Minecraft info, how it works, FAQ, and founders
+- [API documentation](https://ilmcoreai.vercel.app/#api): Free IlmCore AI API with examples
+- [Roblox & Minecraft](https://ilmcoreai.vercel.app/#platforms): How to use IlmCore AI in both games
+- [FAQ](https://ilmcoreai.vercel.app/#faq): Frequently asked questions
+- [YouTube](https://www.youtube.com/@IlmCoreHub): IlmCore AI's official YouTube channel (@IlmCoreHub)
+- [Roblox game](https://www.roblox.com/games/95865111733633/Troll-is-Pinning-tower-With-AI): Troll is Pinning Tower with Ai, with IlmCore AI built in
 - [Sign up](https://ilmcoreai.vercel.app/register.html): Create a free account
 - [Log in](https://ilmcoreai.vercel.app/login.html): Log in to an existing account
 
 ## Capabilities
 
-- Chat: Real-time conversations using multiple AI providers (Groq, OpenRouter, Google Gemini, Together AI)
+- Chat: Real-time conversations that remember context, using multiple AI providers (Groq, OpenRouter, Google Gemini, Together AI). If one provider is slow or down, others keep answering
 - Images: Image generation and editing (Cloudflare Flux, Nano Banana)
-- Voice: Speech-to-text via Whisper, and text-to-speech via browser speechSynthesis and Groq Orpheus
-- Files: Reads PDF, DOCX, images, plain text, and folders of code (JS, Python, HTML, CSS and more)
-- Web: Live web search, weather (Open-Meteo), and time (pytz) lookups
-- Rendering: LaTeX math (KaTeX) and syntax-highlighted code
-- Custom Backend: The IlmCore AI frontend can be pointed at OpenAI-compatible backends that provide /health, /auth/*, /sessions and /chat endpoints
+- Video: Generates short videos
+- Voice: Speech-to-text via Whisper, and text-to-speech via browser speechSynthesis and Groq Orpheus. Voice input and output work on Android and iOS
+- Files: Reads PDF, DOCX, images, plain text, and whole folders of code (JS, Python, HTML, CSS and more)
+- Web: Live web search for time-sensitive info (weather, prices, news, current events), plus weather (Open-Meteo) and time (pytz) lookups. Answers include sources when the web was searched
+- Rendering: LaTeX math (KaTeX) and syntax-highlighted code blocks, with step-by-step explanations
+- Long code: Writes full scripts, apps and projects in a single reply. Files arrive as cards that open in a code viewer with line numbers, where you can copy or download them. Multi-file projects download as one .zip
+- Custom Backend: In Settings > Advanced (custom backend), the frontend can be pointed at any OpenAI-compatible backend that serves /health, /auth/*, /sessions and /chat. Use Test, then Save
+
+## Free API
+
+- Base URL: https://ilmcoreback.vercel.app
+- Cost: Free
+- Step 1, log in: POST /auth/login with JSON {"email": "...", "password": "..."}. Returns {"token": "SESSION_TOKEN", ...}
+- Step 2, create a key: POST /v1/keys with header "Authorization: Bearer SESSION_TOKEN" and JSON {"name": "my-app"}. Returns {"api_key": "ilm_...", ...}. The key is shown once, so copy it and keep it secret. Never put it in client-side code
+- Manage keys: GET /v1/keys lists keys (previews only). DELETE /v1/keys/KEY_ID revokes a key. Both use the same Authorization: Bearer SESSION_TOKEN header
+- Step 3, send a message: POST /v1/chat with the key in the "Authorization: Bearer ilm_..." header (or the X-API-Key header). The reply is JSON: {"reply": "...", "session_id": "..."}. Send the session_id back on the next request to keep the conversation going
+- Works from any language, including curl, Python, JavaScript and Roblox Luau
+- The API is text chat only (no file or image uploads)
+
+### Request fields for POST /v1/chat
+
+- message (string, required): What you want to say. Up to 2000 characters
+- session_id (string): The id from the last reply, to keep conversation context
+- persona (string): Extra instructions, for example "You are a pirate shopkeeper in my game."
+- max_chars (number): Hard limit on reply length, handy for game chat bubbles. Leave it out for long replies such as full code files
+- format (string): "plain" (default, no markdown) or "markdown". Use "markdown" to keep code blocks when asking for code
+- fast (boolean): On by default. Uses the fastest models for quick replies
+
+### Errors and limits
+
+- 400: Missing or invalid message
+- 401: Missing, invalid or revoked API key
+- 404: session_id not found for this key's owner
+- 413: Message too long (over 2000 characters)
+- 429: Rate limit hit. Default is 20 requests per minute and 500 per day per key. Check the Retry-After header and try again later
+- 503: All AI providers are busy. Retry shortly
+
+### Example (curl)
+
+curl -X POST https://ilmcoreback.vercel.app/v1/chat \
+  -H "Authorization: Bearer ilm_YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Tell me a joke","max_chars":200}'
+
+### Roblox tip
+
+Turn on Allow HTTP Requests in the game's Security settings, store the key as a Secret (for example HttpService:GetSecret("IlmCoreKey")), and only call the API from a server Script.
+
+## Roblox
+
+- Game: "Troll is Pinning Tower with Ai", made with Tahabilal012, has IlmCore AI built in
+- Play: https://www.roblox.com/games/95865111733633/Troll-is-Pinning-tower-With-AI
+- How to use: Type "!ai your question" in the game chat
+- You can also add IlmCore AI to your own Roblox game with the API
+
+## Minecraft
+
+- Server: cherrybean.funserver.top
+- How to use: Type "/msg IlmCoreAi your question" in the Minecraft chat to send the AI a private message
+
+## How it works
+
+1. Sign up free with email or Google. No credit card, no download, no approval wait
+2. Ask anything by typing, speaking, or pasting a file. It reads images, PDFs, folders of code and long documents
+3. Get concise, accurate answers, with sources when it searched the web and images when you asked for them. Developers can use the API instead
+
+## Why people choose it
+
+- Free with no hidden tiers, no upsells and no message caps. Every feature is unlocked from day one
+- Fast and reliable thanks to a network of AI providers
+- Your chats are stored on your own account. You can log out and wipe local data from Settings
+- Works on any device from one link
+- Bring your own OpenAI-compatible backend
+- Long code in one reply
+- Polished dark-theme design with animated backgrounds and keyboard shortcuts
+- Built for developers: free API with API keys, session memory and plain-text replies
+- Available in Roblox and Minecraft
+
 ## Pricing
 
-- Free: All features are available at no cost, with no credit card required
+- Free: All features are available at no cost, with no credit card required and no paid tier
+
+## FAQ
+
+- Is it free? Yes. No credit card and no paid tier. Chat, image generation, voice and file upload are all available when you sign up
+- What makes it different? It does chat, images, voice, files and web search in one place, it is free without catches, and it uses multiple AI providers so it stays up when others go down
+- Can it read my files? Yes: PDF, DOCX, images and whole code folders
+- Can it write long code? Yes, in a single reply, as file cards you can open, copy or download. Multi-file projects download as a .zip
+- Does it work on mobile? Yes. It runs in the browser, with voice input and output on Android and iOS
+- Does it have an API? Yes, a free public API (see Free API above)
+- Is it in Roblox? Yes, in "Troll is Pinning Tower with Ai" (!ai your question)
+- Is it in Minecraft? Yes, on cherrybean.funserver.top (/msg IlmCoreAi your question)
+- Who made it? Taha Bilal (founder, spelled B-I-L-A-L) and Zayan Ali (co-founder)
 
 ## Optional
 
