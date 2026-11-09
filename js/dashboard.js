@@ -188,10 +188,12 @@ async function processImageForUpload(file) {
 
 function renderAttachmentPreview(innerHtml) {
   const container = document.getElementById('image-preview-container');
+  
+  // UPDATED: Chip styles to look good floating above the input box
   container.innerHTML = `
-    <div class="image-preview-wrapper">
+    <div class="image-preview-wrapper" style="display:flex; align-items:center; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:6px 10px; position:relative; max-width:250px;">
       ${innerHtml}
-      <button class="remove-image" id="remove-image">×</button>
+      <button class="remove-image" id="remove-image" style="position:absolute; top:-6px; right:-6px; background:#ff4757; color:white; border:none; border-radius:50%; width:20px; height:20px; font-size:14px; font-weight:bold; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.3);">×</button>
     </div>
   `;
   document.getElementById('remove-image').onclick = () => clearSelectedImage();
@@ -204,16 +206,16 @@ async function handleSingleFileSelected(file) {
     const dataUrl = await processImageForUpload(file);
     uploadedImageBase64 = dataUrl;
     uploadedImageName = file.name;
-    renderAttachmentPreview(`<img class="image-preview" src="${dataUrl}">`);
+    renderAttachmentPreview(`<img class="image-preview" src="${dataUrl}" style="max-height:40px; border-radius:4px;">`);
     return;
   }
   const isText = isLikelyTextFile(file);
   const content = isText ? await readFileAsText(file) : await readFileAsDataURL(file);
   uploadedFile = { name: file.name, icon: fileIconFor(file.name), isText, mime: file.type || '', content };
   renderAttachmentPreview(`
-    <div class="file-chip">
-      <span class="file-chip-icon">${uploadedFile.icon}</span>
-      <span class="file-chip-name">${escapeHtml(file.name)}</span>
+    <div class="file-chip" style="display:flex; align-items:center; gap:6px;">
+      <span class="file-chip-icon" style="font-size:18px;">${uploadedFile.icon}</span>
+      <span class="file-chip-name" style="font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;">${escapeHtml(file.name)}</span>
     </div>
   `);
 }
@@ -233,9 +235,9 @@ async function handleFolderSelected(files) {
   }
   uploadedFolder = { name: folderName, count: files.length, files: entries };
   renderAttachmentPreview(`
-    <div class="file-chip">
-      <span class="file-chip-icon">📁</span>
-      <span class="file-chip-name">${escapeHtml(folderName)} (${files.length} files)</span>
+    <div class="file-chip" style="display:flex; align-items:center; gap:6px;">
+      <span class="file-chip-icon" style="font-size:18px;">📁</span>
+      <span class="file-chip-name" style="font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;">${escapeHtml(folderName)} (${files.length})</span>
     </div>
   `);
 }
