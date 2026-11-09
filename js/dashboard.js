@@ -10,7 +10,6 @@
 })();
 
 /* ---------- STATE ---------- */
-// Every visit starts a fresh chat. Old chats stay in the sidebar and open only when clicked.
 localStorage.removeItem('ilmcore_session_id');
 const state = {
   sessionId: null,
@@ -311,13 +310,12 @@ el.imageUpload.addEventListener("change", async (e) => {
   }
 });
 
-/* Paste images (Ctrl+V / screenshot snips) straight into the message box */
 el.chatInput.addEventListener('paste', async (e) => {
   const items = Array.from((e.clipboardData && e.clipboardData.items) || []);
   const imgItem = items.find(it => it.kind === 'file' && it.type.startsWith('image/'));
-  if (!imgItem) return;                       // normal text paste — leave it alone
+  if (!imgItem) return;
   const hasText = items.some(it => it.kind === 'string' && it.type === 'text/plain');
-  if (hasText) return;                        // mixed clipboard: keep the text paste
+  if (hasText) return;
   const blob = imgItem.getAsFile();
   if (!blob) return;
   e.preventDefault();
@@ -489,7 +487,6 @@ function startNewChat() {
   if (isMobile()) setSidebarCollapsed(true);
 }
 el.newChatBtn.addEventListener('click', startNewChat);
-// Coming back via the browser's back/forward cache must also start fresh
 window.addEventListener('pageshow', (e) => { if (e.persisted) startNewChat(); });
 
 function clearChat(showWelcomeScreen) {
@@ -516,7 +513,6 @@ function escapeHtml(str) {
 
 const _HL_KW = new Set(['function','const','let','var','return','if','else','for','while','import','from','export','class','def','elif','try','except','catch','finally','new','async','await','public','static','void','int','float','double','string','bool','true','false','null','None','True','False','self','this','print','console','switch','case','break','continue','struct','interface','implements','extends']);
 function highlightCode(code) {
-  // Single pass over the RAW code so we never run regexes over our own <span> markup.
   const re = /(\/\*[\s\S]*?\*\/|\/\/[^\n]*|^[ \t]*#(?!include|define)[^\n]*)|("(?:\\[\s\S]|[^"\\\n])*"|'(?:\\[\s\S]|[^'\\\n])*'|`(?:\\[\s\S]|[^`\\])*`)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_$][\w$]*)/gm;
   let out = '', last = 0, m;
   while ((m = re.exec(code)) !== null) {
@@ -533,14 +529,13 @@ function highlightCode(code) {
   return out + escapeHtml(code.slice(last));
 }
 
-/* ---------- CLIPBOARD (works on HTTPS, falls back for older/blocked contexts) ---------- */
 async function copyText(text) {
   try {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(text);
       return true;
     }
-  } catch (_) { /* fall through to legacy path */ }
+  } catch (_) { }
   try {
     const ta = document.createElement('textarea');
     ta.value = text;
@@ -555,7 +550,6 @@ async function copyText(text) {
   } catch (_) { return false; }
 }
 
-// Event delegation: survives innerHTML re-renders (streaming, history reload, regenerate)
 document.addEventListener('click', async (e) => {
   const btn = e.target.closest('.code-copy-btn');
   if (!btn) return;
@@ -590,7 +584,6 @@ function buildSourceCards(urls) {
   return `<div class="sources-block"><div class="sources-label">Sources</div><div class="sources-list">${cards}</div></div>`;
 }
 
-
 /* ---------- DOWNLOADABLE FILE CARDS ([FILE: path] ... [/FILE]) ---------- */
 const FILE_BLOCK_RE = /\[FILE:\s*([^\]\n]+?)\s*\]\s*\n?([\s\S]*?)\[\/FILE\]/g;
 
@@ -601,7 +594,6 @@ function cleanFileBody(body) {
   return b.replace(/\s+$/, '');
 }
 
-// Pulls file blocks out of a reply. Handles a half-streamed (unclosed) block too.
 function extractFileBlocks(text) {
   const files = [];
   const mark = '\n\n\u0000FILEGROUP\u0000\n\n';
@@ -662,7 +654,6 @@ function _crc32(bytes) {
   for (let i = 0; i < bytes.length; i++) c = _CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
   return (c ^ 0xFFFFFFFF) >>> 0;
 }
-// Minimal "store" zip writer so "Download all" works with no server and no library.
 function buildZip(files) {
   const enc = new TextEncoder();
   const parts = [], central = [];
@@ -691,7 +682,6 @@ function buildZip(files) {
   return new Blob([...parts, ...central, end.buffer], { type: 'application/zip' });
 }
 
-// Minimal zip reader (stored + deflate) so zips from the backend can be opened in the page.
 async function readZip(buf) {
   const dv = new DataView(buf);
   const u8 = new Uint8Array(buf);
@@ -787,7 +777,6 @@ function getFileViewer() {
   return v;
 }
 
-// Split highlighted HTML into lines, closing/reopening <span>s so multi-line tokens stay coloured.
 function highlightToLines(code) {
   const html = highlightCode(code);
   const open = [];
@@ -834,7 +823,6 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Event delegation so everything keeps working after streaming / history re-renders
 document.addEventListener('click', async (e) => {
   const closeBtn = e.target.closest('[data-fv-close]');
   if (closeBtn) { closeFileViewer(); return; }
@@ -918,7 +906,6 @@ function renderMarkdown(text) {
   src = src.replace(/(?<!\*)\*(?!\*)(.+?)\*(?!\*)/g, '<em>$1</em>');
   src = src.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
   src = src.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-  // Auto-link bare URLs (not already inside an <a>), opening in a new tab
   src = src.replace(/(?<![">=])(https?:\/\/[^\s<]+)/g, (m, url) => {
     const tail = url.match(/[.,;:!?)\]]+$/);
     const clean = tail ? url.slice(0, -tail[0].length) : url;
@@ -1099,7 +1086,6 @@ function wireMessageActions(row, rawContent) {
     dislikeBtn.classList.toggle('disliked');
     likeBtn.classList.remove('liked');
   });
-
 }
 
 function appendTypingIndicator() {
@@ -1117,38 +1103,12 @@ function appendTypingIndicator() {
   return row;
 }
 
-function streamReplyInto(bubbleEl, fullText, onDone) {
-  const words = fullText.split(' ');
-  let i = 0;
-  bubbleEl.innerHTML = '<span class="streaming-cursor"></span>';
-  const interval = setInterval(() => {
-    i++;
-    let partial = words.slice(0, i).join(' ');
-    if ((partial.match(/```/g) || []).length % 2 === 1) partial += '\n```';
-    bubbleEl.innerHTML = renderMarkdown(partial) + '<span class="streaming-cursor"></span>';
-    scrollToBottom(false);
-    if (i >= words.length) {
-      clearInterval(interval);
-      bubbleEl.innerHTML = renderMarkdown(fullText);
-      renderMath(bubbleEl);
-      if (onDone) onDone();
-    }
-  }, 28);
-}
-
 /* ==========================================================================
    NARRATION (browser speechSynthesis)
    ========================================================================== */
 let _currentUtterance = null;
 let _activeNarrateBtn = null;
 
-/* ---------- AUDIO UNLOCK ----------
-   Chrome silently drops the FIRST speechSynthesis.speak() call after a page
-   loads unless there's been a prior successful audio interaction. Playing
-   an empty utterance on the very first user click "unlocks" the engine for
-   the rest of the session. Without this, the first narration click does
-   nothing, and only the second click onward works — which was the exact
-   symptom we were debugging. */
 let _audioUnlocked = false;
 function unlockSpeechEngine() {
   if (_audioUnlocked || !('speechSynthesis' in window)) return;
@@ -1161,7 +1121,6 @@ function unlockSpeechEngine() {
     console.log('[IlmCore] Speech engine unlocked');
   } catch (_) {}
 }
-// Unlock on the first click / touch / key press anywhere on the page
 ['click', 'touchstart', 'keydown'].forEach(evt => {
   document.addEventListener(evt, unlockSpeechEngine, { once: true, passive: true });
 });
@@ -1213,9 +1172,7 @@ function speakText(text, onDone) {
   const clean = cleanTextForSpeech(text);
   if (!clean) return;
 
-  // Ensure the audio engine is unlocked before we try to speak.
   unlockSpeechEngine();
-
   stopNarration();
 
   const utter = new SpeechSynthesisUtterance(clean);
@@ -1225,9 +1182,7 @@ function speakText(text, onDone) {
   utter.pitch = 1;
   utter.volume = 1;
 
-  utter.onstart = () => console.log('[IlmCore] Narration started');
   utter.onend = () => {
-    console.log('[IlmCore] Narration ended');
     if (_activeNarrateBtn) {
       _activeNarrateBtn.classList.remove('narrating');
       _activeNarrateBtn = null;
@@ -1235,8 +1190,7 @@ function speakText(text, onDone) {
     _currentUtterance = null;
     if (typeof onDone === 'function') onDone();
   };
-  utter.onerror = (e) => {
-    console.error('[IlmCore] Narration error:', e.error);
+  utter.onerror = () => {
     if (_activeNarrateBtn) _activeNarrateBtn.classList.remove('narrating');
     _activeNarrateBtn = null;
     _currentUtterance = null;
@@ -1245,11 +1199,8 @@ function speakText(text, onDone) {
   _currentUtterance = utter;
   window.speechSynthesis.speak(utter);
 
-  // Chrome sometimes silently drops the first utterance even after unlocking.
-  // If speaking is still false 400ms later, cancel and try again.
   setTimeout(() => {
     if (!window.speechSynthesis.speaking && _currentUtterance === utter) {
-      console.warn('[IlmCore] Chrome dropped utterance — retrying once');
       try {
         window.speechSynthesis.cancel();
         window.speechSynthesis.speak(utter);
@@ -1318,75 +1269,76 @@ async function requestAssistantReply(text, image, file, folder) {
   clearSelectedImage();
 
   try {
-    const data = await IlmAPI.chat(text, state.sessionId, image, file, folder);
-    const reply = (data && (data.reply || data.message)) || '...';
-    if (data && data.session_id !== undefined && data.session_id !== null) {
-      const isNewSession = String(state.sessionId) !== String(data.session_id);
-      state.sessionId = data.session_id;
-      localStorage.setItem('ilmcore_session_id', state.sessionId);
-      if (isNewSession) {
-        el.currentChatTitle.textContent = text.length > 40 ? text.slice(0, 40) + '…' : text;
-      }
-      loadSessionsList();
+    // 1. Get the stream response from the new IlmAPI.chat function
+    const response = await IlmAPI.chat(text, state.sessionId, image, file, folder);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP Error: ${response.status}`);
     }
 
+    // 2. Remove the typing dots and create an empty assistant bubble
     typingRow.remove();
     const row = appendMessage('assistant', '', new Date());
     const bubble = row.querySelector('.msg-bubble');
-    streamReplyInto(bubble, reply, () => {
-      state.isSending = false;
-      autoresizeInput();
+    
+    // 3. Set up the stream reader
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let fullReply = "";
+    
+    // Add a cursor to show it's typing
+    bubble.innerHTML = '<span class="streaming-cursor"></span>';
 
-      if (settings.sound) playChime();
+    // 4. Read the stream chunk-by-chunk
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-      if (data && data.image_url) {
-        const img = document.createElement('img');
-        img.src = data.image_url;
-        img.alt = 'Generated image';
-        img.style.cssText = 'max-width:320px;max-height:320px;border-radius:12px;display:block;margin-top:10px;';
-        bubble.appendChild(img);
-        scrollToBottom();
-      }
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split("\n");
 
-      if (data && data.file_url) {
-        // Older backends send a download link instead of [FILE] blocks.
-        // Single files: fetch the text and show the same click-to-open viewer card.
-        // Zips (several files) or fetch failures: fall back to a plain download link.
-        const fileHref = /^https?:\/\//i.test(data.file_url) ? data.file_url : IlmAPI.BASE_URL + data.file_url;
-        const fileLabel = data.file_label || 'download.zip';
-        const addDownloadLink = () => {
-          const card = document.createElement('a');
-          card.href = fileHref;
-          card.download = fileLabel;
-          card.style.cssText = 'display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border, rgba(255,255,255,0.12));text-decoration:none;color:inherit;max-width:260px;';
-          card.innerHTML = `<span style="font-size:20px;">📦</span><span style="font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(fileLabel)}</span>`;
-          bubble.appendChild(card);
-          scrollToBottom();
-        };
-        fetch(fileHref)
-          .then(r => { if (!r.ok) throw new Error('fetch failed'); return r.arrayBuffer(); })
-          .then(async (buf) => {
-            const head = new Uint8Array(buf.slice(0, 2));
-            let files;
-            if (head[0] === 0x50 && head[1] === 0x4B) {
-              files = await readZip(buf);           // zip from the backend: open it here
-            } else {
-              files = [{ path: fileLabel, content: new TextDecoder().decode(buf).replace(/\s+$/, ''), done: true }];
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const dataStr = line.replace("data: ", "").trim();
+          if (!dataStr) continue;
+          
+          const data = JSON.parse(dataStr);
+
+          if (data.type === "meta") {
+            if (data.content.session_id !== undefined && data.content.session_id !== null) {
+              const isNewSession = String(state.sessionId) !== String(data.content.session_id);
+              state.sessionId = data.content.session_id;
+              localStorage.setItem('ilmcore_session_id', state.sessionId);
+              if (isNewSession) {
+                el.currentChatTitle.textContent = text.length > 40 ? text.slice(0, 40) + '…' : text;
+              }
+              loadSessionsList();
             }
-            if (!files.length) throw new Error('empty');
-            const holder = document.createElement('div');
-            holder.innerHTML = renderFileGroup(files);
-            bubble.appendChild(holder.firstElementChild);
-            scrollToBottom();
-          })
-          .catch(addDownloadLink);
+          } 
+          else if (data.type === "chunk") {
+            fullReply += data.content;
+            // Re-render Markdown (this makes code blocks and math render as they stream)
+            bubble.innerHTML = renderMarkdown(fullReply) + '<span class="streaming-cursor"></span>';
+            scrollToBottom(false);
+          } 
+          else if (data.type === "done") {
+            bubble.innerHTML = renderMarkdown(fullReply);
+            renderMath(bubble);
+          }
+        }
       }
+    }
 
-      if (settings.autoNarrate) {
-        const narrateBtn = row.querySelector('.action-narrate');
-        if (narrateBtn) toggleNarration(reply, narrateBtn);
-      }
-    });
+    // 5. Cleanup after streaming is done
+    state.isSending = false;
+    autoresizeInput();
+    if (settings.sound) playChime();
+
+    if (settings.autoNarrate) {
+      const narrateBtn = row.querySelector('.action-narrate');
+      if (narrateBtn) toggleNarration(fullReply, narrateBtn);
+    }
+
   } catch (err) {
     typingRow.remove();
     appendMessage('assistant', `I couldn't reach the backend: **${escapeHtml(err.message || 'unknown error')}**. The current backend URL is \`${IlmAPI.BASE_URL}\`.`, new Date());
@@ -1475,7 +1427,6 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !settingsModal.hidden) closeSettingsPanel();
 });
 
-/* Accent swatches */
 document.querySelectorAll('#swatch-row .swatch').forEach(sw => {
   sw.addEventListener('click', () => {
     settings.accent = sw.dataset.accent;
@@ -1485,7 +1436,6 @@ document.querySelectorAll('#swatch-row .swatch').forEach(sw => {
   });
 });
 
-/* Font size */
 document.querySelectorAll('#font-size-row .size-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const map = { '0.92': 'small', '1': 'default', '1.1': 'large' };
@@ -1496,7 +1446,6 @@ document.querySelectorAll('#font-size-row .size-btn').forEach(btn => {
   });
 });
 
-/* Toggles */
 const autoNarrateEl = document.getElementById('set-auto-narrate');
 if (autoNarrateEl) autoNarrateEl.addEventListener('change', () => {
   settings.autoNarrate = autoNarrateEl.checked;
@@ -1527,7 +1476,6 @@ if (sourcesToggle) sourcesToggle.addEventListener('change', () => {
   });
 });
 
-/* Voice picker + rate */
 function populateVoiceList() {
   if (!('speechSynthesis' in window)) return;
   const sel = document.getElementById('set-voice');
@@ -1578,7 +1526,6 @@ if (voiceRate) voiceRate.addEventListener('input', () => {
   saveSettings();
 });
 
-/* Advanced: API base URL */
 document.getElementById('advanced-toggle').addEventListener('click', (e) => {
   const btn = e.currentTarget;
   const body = document.getElementById('advanced-body');
@@ -1634,7 +1581,6 @@ document.getElementById('clear-all-data').addEventListener('click', () => {
 
 document.getElementById('settings-logout').addEventListener('click', doLogout);
 
-/* ---------- VOICE INPUT (mic) ---------- */
 (function initVoiceInput() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
