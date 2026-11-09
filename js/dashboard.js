@@ -310,24 +310,50 @@ el.imageUpload.addEventListener("change", async (e) => {
   }
 });
 
+// ============================================================================
+// THE MAGIC PASTE LISTENER
+// If text is longer than 500 chars, wrap it in a File object and attach it.
+// ============================================================================
 el.chatInput.addEventListener('paste', async (e) => {
   const items = Array.from((e.clipboardData && e.clipboardData.items) || []);
+  
+  // 1. Handle pasted images
   const imgItem = items.find(it => it.kind === 'file' && it.type.startsWith('image/'));
-  if (!imgItem) return;
-  const hasText = items.some(it => it.kind === 'string' && it.type === 'text/plain');
-  if (hasText) return;
-  const blob = imgItem.getAsFile();
-  if (!blob) return;
-  e.preventDefault();
-  try {
-    const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
-    const named = new File([blob], `pasted-image-${Date.now()}.${ext}`, { type: blob.type });
-    await handleSingleFileSelected(named);
-    showToast('Image pasted', 'success', 1400);
-  } catch (err) {
-    console.error('[IlmCore] Failed to paste image:', err);
-    showToast('Could not paste that image.', 'error');
-    clearSelectedImage();
+  if (imgItem) {
+    const hasText = items.some(it => it.kind === 'string' && it.type === 'text/plain');
+    if (hasText) return;
+    const blob = imgItem.getAsFile();
+    if (!blob) return;
+    e.preventDefault();
+    try {
+      const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+      const named = new File([blob], `pasted-image-${Date.now()}.${ext}`, { type: blob.type });
+      await handleSingleFileSelected(named);
+      showToast('Image pasted', 'success', 1400);
+    } catch (err) {
+      console.error('[IlmCore] Failed to paste image:', err);
+      showToast('Could not paste that image.', 'error');
+      clearSelectedImage();
+    }
+    return;
+  }
+
+  // 2. Handle massive text pastes
+  const textData = e.clipboardData.getData('text/plain');
+  if (textData && textData.length > 500) {
+    e.preventDefault(); // Stop the text from going into the textarea
+    
+    // Guess the file extension based on the content
+    let ext = 'txt';
+    if (textData.includes('import React') || textData.includes('function ') || textData.includes('const ')) ext = 'js';
+    else if (textData.includes('def ') || textData.includes('import os')) ext = 'py';
+    else if (textData.includes('public class ')) ext = 'java';
+    else if (textData.includes('<html>') || textData.includes('<!DOCTYPE html>')) ext = 'html';
+    else if (textData.includes('{') && textData.includes('}')) ext = 'json';
+
+    const file = new File([textData], `pasted-text-${Date.now()}.${ext}`, { type: 'text/plain' });
+    await handleSingleFileSelected(file);
+    showToast('Long text converted to a file attachment 📄', 'success', 3000);
   }
 });
 
@@ -680,6 +706,44 @@ function buildZip(files) {
   end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
   end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
   return new Blob([...parts, ...central, end.buffer], { type: 'application/zip' });
+}
+
+async function readZip(buf) {
+  const dv = new DataView(buf);
+  const u8 = new Uint8Array(buf);
+  let eocd = -1;
+  for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 66000); i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('not a zip');
+  const count = dv.getUint16(eocd + 10, true);
+  let p = dv.getUint32(eocd + 16, true);
+  const dec = new TextDecoder('utf-8');
+  const files = [];
+  for (let n = 0; n < count; n++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) break;
+    const method = dv.getUint16(p + 10, true);
+    const compSize = dv.getUint32(p + 20, true);
+    const nameLen = dv.getUint16(p + 28, true);
+    const extraLen = dv.getUint16(p + 30, true);
+    const commentLen = dv.getUint16(p + 32, true);
+    const localOff = dv.getUint32(p + 42, true);
+    const name = dec.decode(u8.subarray(p + 46, p + 46 + nameLen));
+    p += 46 + nameLen + extraLen + commentLen;
+    if (name.endsWith('/')) continue;
+    const lNameLen = dv.getUint16(localOff + 26, true);
+    const lExtraLen = dv.getUint16(localOff + 28, true);
+    const start = localOff + 30 + lNameLen + lExtraLen;
+    const raw = u8.subarray(start, start + compSize);
+    let bytes;
+    if (method === 0) bytes = raw;
+    else if (method === 8) {
+      const stream = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+    } else continue;
+    files.push({ path: name, content: dec.decode(bytes).replace(/\s+$/, ''), done: true });
+  }
+  return files;
 }
 
 function downloadBlob(name, blob) {
