@@ -1269,27 +1269,22 @@ async function requestAssistantReply(text, image, file, folder) {
   clearSelectedImage();
 
   try {
-    // 1. Get the stream response from the new IlmAPI.chat function
     const response = await IlmAPI.chat(text, state.sessionId, image, file, folder);
     
     if (!response.ok) {
       throw new Error(`HTTP Error: ${response.status}`);
     }
 
-    // 2. Remove the typing dots and create an empty assistant bubble
     typingRow.remove();
     const row = appendMessage('assistant', '', new Date());
     const bubble = row.querySelector('.msg-bubble');
     
-    // 3. Set up the stream reader
     const reader = response.body.getReader();
     const decoder = new TextDecoder("utf-8");
     let fullReply = "";
     
-    // Add a cursor to show it's typing
     bubble.innerHTML = '<span class="streaming-cursor"></span>';
 
-    // 4. Read the stream chunk-by-chunk
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -1317,7 +1312,6 @@ async function requestAssistantReply(text, image, file, folder) {
           } 
           else if (data.type === "chunk") {
             fullReply += data.content;
-            // Re-render Markdown (this makes code blocks and math render as they stream)
             bubble.innerHTML = renderMarkdown(fullReply) + '<span class="streaming-cursor"></span>';
             scrollToBottom(false);
           } 
@@ -1329,7 +1323,6 @@ async function requestAssistantReply(text, image, file, folder) {
       }
     }
 
-    // 5. Cleanup after streaming is done
     state.isSending = false;
     autoresizeInput();
     if (settings.sound) playChime();
@@ -1476,36 +1469,51 @@ if (sourcesToggle) sourcesToggle.addEventListener('change', () => {
   });
 });
 
+/* Look for new voices when the browser loads them */
 function populateVoiceList() {
   if (!('speechSynthesis' in window)) return;
   const sel = document.getElementById('set-voice');
   if (!sel) return;
+  
+  // Get all available voices
   const voices = window.speechSynthesis.getVoices();
+  
   if (!voices.length) {
     sel.innerHTML = '<option value="">(loading voices…)</option>';
     return;
   }
+  
   const current = settings.voiceURI;
   sel.innerHTML = '<option value="">Browser default</option>';
-  voices.filter(v => /^en/i.test(v.lang)).forEach(v => {
-    const opt = document.createElement('option');
-    opt.value = v.voiceURI;
-    opt.textContent = `${v.name} — ${v.lang}`;
-    if (v.voiceURI === current) opt.selected = true;
-    sel.appendChild(opt);
-  });
-  const nonEn = voices.filter(v => !/^en/i.test(v.lang));
-  if (nonEn.length) {
-    const grp = document.createElement('optgroup');
-    grp.label = 'Other languages';
-    nonEn.forEach(v => {
+  
+  // Group them to make it look organized
+  const englishVoices = voices.filter(v => /^en/i.test(v.lang));
+  const otherVoices = voices.filter(v => !/^en/i.test(v.lang));
+
+  if (englishVoices.length > 0) {
+    const grpEn = document.createElement('optgroup');
+    grpEn.label = 'English Voices';
+    englishVoices.forEach(v => {
       const opt = document.createElement('option');
       opt.value = v.voiceURI;
-      opt.textContent = `${v.name} — ${v.lang}`;
+      opt.textContent = `${v.name} (${v.lang})`;
       if (v.voiceURI === current) opt.selected = true;
-      grp.appendChild(opt);
+      grpEn.appendChild(opt);
     });
-    sel.appendChild(grp);
+    sel.appendChild(grpEn);
+  }
+
+  if (otherVoices.length > 0) {
+    const grpOther = document.createElement('optgroup');
+    grpOther.label = 'Other Languages (Hindi, Urdu, etc.)';
+    otherVoices.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.voiceURI;
+      opt.textContent = `${v.name} (${v.lang})`;
+      if (v.voiceURI === current) opt.selected = true;
+      grpOther.appendChild(opt);
+    });
+    sel.appendChild(grpOther);
   }
 }
 if ('speechSynthesis' in window) {
@@ -1517,6 +1525,16 @@ const voiceSel = document.getElementById('set-voice');
 if (voiceSel) voiceSel.addEventListener('change', () => {
   settings.voiceURI = voiceSel.value;
   saveSettings();
+  
+  // NEW: Play a quick preview when you change the voice
+  const previewText = "Hello! This is how I sound.";
+  stopNarration();
+  const utter = new SpeechSynthesisUtterance(previewText);
+  const voices = window.speechSynthesis.getVoices();
+  const selectedVoice = voices.find(v => v.voiceURI === settings.voiceURI);
+  if (selectedVoice) utter.voice = selectedVoice;
+  utter.rate = settings.voiceRate || 1;
+  window.speechSynthesis.speak(utter);
 });
 
 const voiceRate = document.getElementById('set-voice-rate');
