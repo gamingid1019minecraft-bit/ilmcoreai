@@ -53,7 +53,20 @@ const IlmAPI = (() => {
     login: (email, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
     register: (name, email, password) => request('/auth/register', { method: 'POST', body: JSON.stringify({ name, email, password }) }),
     googleAuth: (idToken) => request('/auth/google', { method: 'POST', body: JSON.stringify({ id_token: idToken }) }),
-    chat: (message, sessionId, image, file, folder) => request('/chat', { method: 'POST', body: JSON.stringify({ message, session_id: sessionId, image: image || null, file: file || null, folder: folder || null }) }),
+    
+    // UPDATED: Returns raw fetch response to allow Server-Sent Events (SSE) streaming
+    chat: (message, sessionId, image, file, folder) => {
+      const token = localStorage.getItem('ilmcore_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      
+      return fetch(`${getBaseURL()}/chat`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({ message, session_id: sessionId, image: image || null, file: file || null, folder: folder || null })
+      });
+    },
+
     getSessions: () => request('/sessions'),
     getMessages: (sessionId) => request(`/sessions/${sessionId}/messages`),
     deleteSession: (sessionId) => request(`/sessions/${sessionId}`, { method: 'DELETE' }),
@@ -97,7 +110,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-/* Page fade — only on app pages, never on the landing page (prevents CLS) */
 document.addEventListener('DOMContentLoaded', () => {
   const page = window.location.pathname.split('/').pop() || 'index.html';
   const isAppPage = ['dashboard.html', 'login.html', 'register.html'].includes(page);
@@ -116,7 +128,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-/* Click ripple — caches the position check to prevent forced reflows */
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('.btn, .btn-icon, .btn-google, .suggested-prompt, .sidebar-item');
   if (!btn) return;
