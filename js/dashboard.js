@@ -1,6 +1,6 @@
 /* ==========================================================================
    IlmCore AI — dashboard.js
-   Chat interface logic + settings panel + narration (browser speechSynthesis)
+   Chat interface logic + settings panel + narration
    ========================================================================== */
 
 /* ---------- AUTH GUARD ---------- */
@@ -682,44 +682,6 @@ function buildZip(files) {
   return new Blob([...parts, ...central, end.buffer], { type: 'application/zip' });
 }
 
-async function readZip(buf) {
-  const dv = new DataView(buf);
-  const u8 = new Uint8Array(buf);
-  let eocd = -1;
-  for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 66000); i--) {
-    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
-  }
-  if (eocd < 0) throw new Error('not a zip');
-  const count = dv.getUint16(eocd + 10, true);
-  let p = dv.getUint32(eocd + 16, true);
-  const dec = new TextDecoder('utf-8');
-  const files = [];
-  for (let n = 0; n < count; n++) {
-    if (dv.getUint32(p, true) !== 0x02014b50) break;
-    const method = dv.getUint16(p + 10, true);
-    const compSize = dv.getUint32(p + 20, true);
-    const nameLen = dv.getUint16(p + 28, true);
-    const extraLen = dv.getUint16(p + 30, true);
-    const commentLen = dv.getUint16(p + 32, true);
-    const localOff = dv.getUint32(p + 42, true);
-    const name = dec.decode(u8.subarray(p + 46, p + 46 + nameLen));
-    p += 46 + nameLen + extraLen + commentLen;
-    if (name.endsWith('/')) continue;
-    const lNameLen = dv.getUint16(localOff + 26, true);
-    const lExtraLen = dv.getUint16(localOff + 28, true);
-    const start = localOff + 30 + lNameLen + lExtraLen;
-    const raw = u8.subarray(start, start + compSize);
-    let bytes;
-    if (method === 0) bytes = raw;
-    else if (method === 8) {
-      const stream = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-      bytes = new Uint8Array(await new Response(stream).arrayBuffer());
-    } else continue;
-    files.push({ path: name, content: dec.decode(bytes).replace(/\s+$/, ''), done: true });
-  }
-  return files;
-}
-
 function downloadBlob(name, blob) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1272,9 +1234,28 @@ async function requestAssistantReply(text, image, file, folder) {
     const response = await IlmAPI.chat(text, state.sessionId, image, file, folder);
     
     if (!response.ok) {
-      throw new Error(`HTTP Error: ${response.status}`);
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error || `HTTP Error: ${response.status}`);
     }
 
+    const contentType = response.headers.get("content-type");
+    
+    // Backend handles Identity overrides as standard JSON
+    if (contentType && contentType.includes("application/json")) {
+        const jsonData = await response.json();
+        typingRow.remove();
+        const row = appendMessage('assistant', jsonData.reply, new Date());
+        state.isSending = false;
+        autoresizeInput();
+        if (settings.sound) playChime();
+        if (settings.autoNarrate) {
+          const narrateBtn = row.querySelector('.action-narrate');
+          if (narrateBtn) toggleNarration(jsonData.reply, narrateBtn);
+        }
+        return;
+    }
+
+    // Otherwise, it's an SSE stream
     typingRow.remove();
     const row = appendMessage('assistant', '', new Date());
     const bubble = row.querySelector('.msg-bubble');
@@ -1297,7 +1278,8 @@ async function requestAssistantReply(text, image, file, folder) {
           const dataStr = line.replace("data: ", "").trim();
           if (!dataStr) continue;
           
-          const data = JSON.parse(dataStr);
+          let data;
+          try { data = JSON.parse(dataStr); } catch(e) { continue; }
 
           if (data.type === "meta") {
             if (data.content.session_id !== undefined && data.content.session_id !== null) {
@@ -1315,6 +1297,14 @@ async function requestAssistantReply(text, image, file, folder) {
             bubble.innerHTML = renderMarkdown(fullReply) + '<span class="streaming-cursor"></span>';
             scrollToBottom(false);
           } 
+          else if (data.type === "file") {
+            // Handle the new file event from the advanced backend
+            bubble.innerHTML = renderMarkdown(data.content.text);
+            const fileCardHtml = `<div style="margin-top: 10px;"><a href="${data.content.url}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(255,255,255,0.08);border:1px solid var(--glass-border);border-radius:10px;text-decoration:none;color:inherit;font-weight:500;">📥 Download ${data.content.name}</a></div>`;
+            bubble.insertAdjacentHTML('beforeend', fileCardHtml);
+            fullReply = data.content.text; // Update full reply so it doesn't re-render the [FILE] block
+            scrollToBottom(false);
+          }
           else if (data.type === "done") {
             bubble.innerHTML = renderMarkdown(fullReply);
             renderMath(bubble);
@@ -1334,7 +1324,7 @@ async function requestAssistantReply(text, image, file, folder) {
 
   } catch (err) {
     typingRow.remove();
-    appendMessage('assistant', `I couldn't reach the backend: **${escapeHtml(err.message || 'unknown error')}**. The current backend URL is \`${IlmAPI.BASE_URL}\`.`, new Date());
+    appendMessage('assistant', `I couldn't reach the backend: **${escapeHtml(err.message || 'unknown error')}**. Please try again.`, new Date());
     state.isSending = false;
     autoresizeInput();
     showToast('Message failed to send', 'error');
@@ -1469,51 +1459,36 @@ if (sourcesToggle) sourcesToggle.addEventListener('change', () => {
   });
 });
 
-/* Look for new voices when the browser loads them */
 function populateVoiceList() {
   if (!('speechSynthesis' in window)) return;
   const sel = document.getElementById('set-voice');
   if (!sel) return;
-  
-  // Get all available voices
   const voices = window.speechSynthesis.getVoices();
-  
   if (!voices.length) {
     sel.innerHTML = '<option value="">(loading voices…)</option>';
     return;
   }
-  
   const current = settings.voiceURI;
   sel.innerHTML = '<option value="">Browser default</option>';
-  
-  // Group them to make it look organized
-  const englishVoices = voices.filter(v => /^en/i.test(v.lang));
-  const otherVoices = voices.filter(v => !/^en/i.test(v.lang));
-
-  if (englishVoices.length > 0) {
-    const grpEn = document.createElement('optgroup');
-    grpEn.label = 'English Voices';
-    englishVoices.forEach(v => {
+  voices.filter(v => /^en/i.test(v.lang)).forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.voiceURI;
+    opt.textContent = `${v.name} — ${v.lang}`;
+    if (v.voiceURI === current) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  const nonEn = voices.filter(v => !/^en/i.test(v.lang));
+  if (nonEn.length) {
+    const grp = document.createElement('optgroup');
+    grp.label = 'Other languages';
+    nonEn.forEach(v => {
       const opt = document.createElement('option');
       opt.value = v.voiceURI;
-      opt.textContent = `${v.name} (${v.lang})`;
+      opt.textContent = `${v.name} — ${v.lang}`;
       if (v.voiceURI === current) opt.selected = true;
-      grpEn.appendChild(opt);
+      grp.appendChild(opt);
     });
-    sel.appendChild(grpEn);
-  }
-
-  if (otherVoices.length > 0) {
-    const grpOther = document.createElement('optgroup');
-    grpOther.label = 'Other Languages (Hindi, Urdu, etc.)';
-    otherVoices.forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v.voiceURI;
-      opt.textContent = `${v.name} (${v.lang})`;
-      if (v.voiceURI === current) opt.selected = true;
-      grpOther.appendChild(opt);
-    });
-    sel.appendChild(grpOther);
+    sel.appendChild(grp);
   }
 }
 if ('speechSynthesis' in window) {
@@ -1526,7 +1501,6 @@ if (voiceSel) voiceSel.addEventListener('change', () => {
   settings.voiceURI = voiceSel.value;
   saveSettings();
   
-  // NEW: Play a quick preview when you change the voice
   const previewText = "Hello! This is how I sound.";
   stopNarration();
   const utter = new SpeechSynthesisUtterance(previewText);
