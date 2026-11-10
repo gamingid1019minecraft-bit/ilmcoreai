@@ -771,4 +771,306 @@ function pickVoice() {
   if (!('speechSynthesis' in window)) return null;
   const voices = window.speechSynthesis.getVoices();
   if (!voices.length) return null;
-  if (settings.voiceURI) { const match = voices.find(v => v.voiceURI === settings.voiceURI); if (match) return match
+  if (settings.voiceURI) { const match = voices.find(v => v.voiceURI === settings.voiceURI); if (match) return match; }
+  const preferred = voices.find(v => /google/i.test(v.name) && /en[-_]/i.test(v.lang)); if (preferred) return preferred;
+  const enVoice = voices.find(v => /en[-_]/i.test(v.lang)); if (enVoice) return enVoice;
+  return voices[0];
+}
+
+function cleanTextForSpeech(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/```[\s\S]*?```/g, ' code block ').replace(/\$\$[\s\S]*?\$\$/g, ' equation ').replace(/\\\[[\s\S]*?\\\]/g, ' equation ')
+    .replace(/\$[^$\n]+\$/g, ' math ').replace(/\\\([\s\S]*?\\\)/g, ' math ').replace(/https?:\/\/\S+/g, '')
+    .replace(/[*_`#>|]/g, '').replace(/\s+/g, ' ').trim().slice(0, 4000);
+}
+
+function speakText(text, onDone) {
+  if (!('speechSynthesis' in window)) { showToast('Text-to-speech is not supported in this browser.', 'error'); return; }
+  const clean = cleanTextForSpeech(text); if (!clean) return;
+  unlockSpeechEngine(); stopNarration();
+  const utter = new SpeechSynthesisUtterance(clean); const voice = pickVoice(); if (voice) utter.voice = voice;
+  utter.rate = settings.voiceRate || 1; utter.pitch = 1; utter.volume = 1;
+  utter.onend = () => { if (_activeNarrateBtn) { _activeNarrateBtn.classList.remove('narrating'); _activeNarrateBtn = null; } _currentUtterance = null; if (typeof onDone === 'function') onDone(); };
+  utter.onerror = () => { if (_activeNarrateBtn) _activeNarrateBtn.classList.remove('narrating'); _activeNarrateBtn = null; _currentUtterance = null; };
+  _currentUtterance = utter; window.speechSynthesis.speak(utter);
+  setTimeout(() => { if (!window.speechSynthesis.speaking && _currentUtterance === utter) { try { window.speechSynthesis.cancel(); window.speechSynthesis.speak(utter); } catch (_) {} } }, 400);
+}
+
+function toggleNarration(text, btn) { if (_activeNarrateBtn === btn) { stopNarration(); return; } stopNarration(); _activeNarrateBtn = btn; btn.classList.add('narrating'); speakText(text); }
+
+/* ---------- SEND MESSAGE ---------- */
+function autoresizeInput() {
+  el.chatInput.style.height = 'auto'; el.chatInput.style.height = Math.min(el.chatInput.scrollHeight, 200) + 'px';
+  const hasAttachment = !!(uploadedImageBase64 || uploadedFile || uploadedFolder);
+  el.sendBtn.disabled = (el.chatInput.value.trim().length === 0 && !hasAttachment) || state.isSending;
+}
+el.chatInput.addEventListener('input', autoresizeInput);
+el.sendBtn.addEventListener('click', sendMessage);
+
+el.chatInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey && settings.enterToSend) { e.preventDefault(); sendMessage(); }
+});
+
+let lastUserMessage = '';
+
+async function sendMessage() {
+  const text = el.chatInput.value.trim();
+  const hasAttachment = !!(uploadedImageBase64 || uploadedFile || uploadedFolder);
+  if ((!text && !hasAttachment) || state.isSending) return;
+
+  const imageForThisMessage = uploadedImageBase64;
+  const imageNameForThisMessage = uploadedImageName;
+  const fileForThisMessage = uploadedFile;
+  const folderForThisMessage = uploadedFolder;
+
+  lastUserMessage = text;
+  hideWelcome();
+  appendMessage('user', text, new Date(), true, {
+    image: imageForThisMessage ? { name: imageNameForThisMessage, dataUrl: imageForThisMessage } : null,
+    file: fileForThisMessage,
+    folder: folderForThisMessage,
+  });
+  el.chatInput.value = '';
+  autoresizeInput();
+
+  await requestAssistantReply(text, imageForThisMessage, fileForThisMessage, folderForThisMessage);
+}
+
+async function requestAssistantReply(text, image, file, folder) {
+  state.isSending = true;
+  el.sendBtn.disabled = true;
+  const typingRow = appendTypingIndicator();
+  clearSelectedImage();
+
+  try {
+    const response = await IlmAPI.chat(text, state.sessionId, image, file, folder);
+    
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error || `HTTP Error: ${response.status}`);
+    }
+
+    const contentType = response.headers.get("content-type");
+    
+    if (contentType && contentType.includes("application/json")) {
+        const jsonData = await response.json();
+        typingRow.remove();
+        
+        // If it's an image generation response, handle the file card
+        if (jsonData.file_url) {
+            const row = appendMessage('assistant', jsonData.reply, new Date());
+            const bubble = row.querySelector('.msg-bubble');
+            const fileCardHtml = `<div style="margin-top: 10px;"><a href="${jsonData.file_url}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(255,255,255,0.08);border:1px solid var(--glass-border);border-radius:10px;text-decoration:none;color:inherit;font-weight:500;">📥 Download ${jsonData.file_label}</a></div>`;
+            bubble.insertAdjacentHTML('beforeend', fileCardHtml);
+            scrollToBottom();
+        } else {
+            const row = appendMessage('assistant', jsonData.reply, new Date());
+        }
+        
+        state.isSending = false;
+        autoresizeInput();
+        if (settings.sound) playChime();
+        if (settings.autoNarrate) {
+          const narrateBtn = document.querySelector('.msg-row.assistant:last-child .action-narrate');
+          if (narrateBtn) toggleNarration(jsonData.reply, narrateBtn);
+        }
+        return;
+    }
+
+    typingRow.remove();
+    const row = appendMessage('assistant', '', new Date());
+    const bubble = row.querySelector('.msg-bubble');
+    
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let fullReply = "";
+    
+    bubble.innerHTML = '<span class="streaming-cursor"></span>';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split("\n");
+
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const dataStr = line.replace("data: ", "").trim();
+          if (!dataStr) continue;
+          
+          let data;
+          try { data = JSON.parse(dataStr); } catch(e) { continue; }
+
+          if (data.type === "meta") {
+            if (data.content.session_id !== undefined && data.content.session_id !== null) {
+              const isNewSession = String(state.sessionId) !== String(data.content.session_id);
+              state.sessionId = data.content.session_id;
+              localStorage.setItem('ilmcore_session_id', state.sessionId);
+              if (isNewSession) el.currentChatTitle.textContent = text.length > 40 ? text.slice(0, 40) + '…' : text;
+              loadSessionsList();
+            }
+          } 
+          else if (data.type === "chunk") {
+            fullReply += data.content;
+            bubble.innerHTML = renderMarkdown(fullReply) + '<span class="streaming-cursor"></span>';
+            scrollToBottom(false);
+          } 
+          else if (data.type === "file") {
+            bubble.innerHTML = renderMarkdown(data.content.text);
+            const fileCardHtml = `<div style="margin-top: 10px;"><a href="${data.content.url}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(255,255,255,0.08);border:1px solid var(--glass-border);border-radius:10px;text-decoration:none;color:inherit;font-weight:500;">📥 Download ${data.content.name}</a></div>`;
+            bubble.insertAdjacentHTML('beforeend', fileCardHtml);
+            fullReply = data.content.text;
+            scrollToBottom(false);
+          }
+          else if (data.type === "done") {
+            bubble.innerHTML = renderMarkdown(fullReply);
+            renderMath(bubble);
+          }
+        }
+      }
+    }
+
+    state.isSending = false;
+    autoresizeInput();
+    if (settings.sound) playChime();
+
+    if (settings.autoNarrate) {
+      const narrateBtn = row.querySelector('.action-narrate');
+      if (narrateBtn) toggleNarration(fullReply, narrateBtn);
+    }
+
+  } catch (err) {
+    typingRow.remove();
+    appendMessage('assistant', `I couldn't reach the backend: **${escapeHtml(err.message || 'unknown error')}**. Please try again.`, new Date());
+    state.isSending = false;
+    autoresizeInput();
+    showToast('Message failed to send', 'error');
+  }
+}
+
+function regenerateFrom(row) {
+  if (state.isSending || !lastUserMessage) return;
+  row.remove();
+  requestAssistantReply(lastUserMessage);
+}
+
+/* ---------- SOUND CHIME ---------- */
+function playChime() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator(); const gain = ctx.createGain();
+    osc.frequency.value = 660; osc.type = 'sine';
+    gain.gain.setValueAtTime(0.06, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc.connect(gain).connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.25);
+  } catch (_) {}
+}
+
+/* ---------- LOGOUT ---------- */
+function doLogout() { stopNarration(); localStorage.clear(); showToast('Logged out', 'success', 1000); setTimeout(() => { window.location.href = 'login.html'; }, 300); }
+el.logoutBtn.addEventListener('click', doLogout);
+
+/* ---------- SETTINGS PANEL ---------- */
+const settingsModal = document.getElementById('settings-modal');
+function openSettingsPanel() {
+  let user = null; try { user = JSON.parse(localStorage.getItem('ilmcore_user') || 'null'); } catch (_) {}
+  const nameEl = document.getElementById('settings-name'); const emailEl = document.getElementById('settings-email'); const avatarEl = document.getElementById('settings-avatar');
+  if (user) { nameEl.textContent = user.name || 'Signed in'; emailEl.textContent = user.email || ''; if (user.picture) avatarEl.src = user.picture; }
+  else { nameEl.textContent = 'Guest'; emailEl.textContent = 'Not signed in'; }
+  const apiInput = document.getElementById('api-base-input'); apiInput.value = localStorage.getItem(OVERRIDE_KEY) || ''; apiInput.placeholder = IlmAPI.DEFAULT_BASE_URL || 'https://ilmcoreback.vercel.app';
+  const conn = document.getElementById('connection-status'); conn.hidden = true; conn.className = 'connection-status'; conn.textContent = '';
+  populateVoiceList(); applySettings(); settingsModal.hidden = false; document.body.style.overflow = 'hidden';
+}
+function closeSettingsPanel() { settingsModal.hidden = true; document.body.style.overflow = ''; }
+
+el.settingsBtn.addEventListener('click', openSettingsPanel);
+document.getElementById('settings-close').addEventListener('click', closeSettingsPanel);
+settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) closeSettingsPanel(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !settingsModal.hidden) closeSettingsPanel(); });
+
+document.querySelectorAll('#swatch-row .swatch').forEach(sw => {
+  sw.addEventListener('click', () => { settings.accent = sw.dataset.accent; saveSettings(); applySettings(); showToast(`Accent: ${sw.dataset.accent}`, 'success', 1400); });
+});
+document.querySelectorAll('#font-size-row .size-btn').forEach(btn => {
+  btn.addEventListener('click', () => { const map = { '0.92': 'small', '1': 'default', '1.1': 'large' }; settings.scale = map[btn.dataset.scale] || 'default'; saveSettings(); applySettings(); showToast(`Text size: ${settings.scale}`, 'success', 1400); });
+});
+
+const autoNarrateEl = document.getElementById('set-auto-narrate');
+if (autoNarrateEl) autoNarrateEl.addEventListener('change', () => { settings.autoNarrate = autoNarrateEl.checked; saveSettings(); if (!settings.autoNarrate) stopNarration(); showToast(`Auto-narrate: ${settings.autoNarrate ? 'ON' : 'OFF'}`, 'success', 1400); });
+const enterToggle = document.getElementById('set-enter');
+if (enterToggle) enterToggle.addEventListener('change', () => { settings.enterToSend = enterToggle.checked; saveSettings(); });
+const soundToggle = document.getElementById('set-sound');
+if (soundToggle) soundToggle.addEventListener('change', () => { settings.sound = soundToggle.checked; saveSettings(); if (settings.sound) playChime(); });
+const sourcesToggle = document.getElementById('set-sources');
+if (sourcesToggle) sourcesToggle.addEventListener('change', () => { settings.showSources = sourcesToggle.checked; saveSettings(); document.querySelectorAll('.sources-block').forEach(b => { b.style.display = settings.showSources ? '' : 'none'; }); });
+
+function populateVoiceList() {
+  if (!('speechSynthesis' in window)) return;
+  const sel = document.getElementById('set-voice'); if (!sel) return;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) { sel.innerHTML = '<option value="">(loading voices…)</option>'; return; }
+  const current = settings.voiceURI; sel.innerHTML = '<option value="">Browser default</option>';
+  voices.filter(v => /^en/i.test(v.lang)).forEach(v => { const opt = document.createElement('option'); opt.value = v.voiceURI; opt.textContent = `${v.name} — ${v.lang}`; if (v.voiceURI === current) opt.selected = true; sel.appendChild(opt); });
+  const nonEn = voices.filter(v => !/^en/i.test(v.lang));
+  if (nonEn.length) { const grp = document.createElement('optgroup'); grp.label = 'Other languages'; nonEn.forEach(v => { const opt = document.createElement('option'); opt.value = v.voiceURI; opt.textContent = `${v.name} — ${v.lang}`; if (v.voiceURI === current) opt.selected = true; grp.appendChild(opt); }); sel.appendChild(grp); }
+}
+if ('speechSynthesis' in window) { window.speechSynthesis.onvoiceschanged = populateVoiceList; populateVoiceList(); }
+
+const voiceSel = document.getElementById('set-voice');
+if (voiceSel) voiceSel.addEventListener('change', () => {
+  settings.voiceURI = voiceSel.value; saveSettings();
+  const previewText = "Hello! This is how I sound."; stopNarration();
+  const utter = new SpeechSynthesisUtterance(previewText); const voices = window.speechSynthesis.getVoices(); const selectedVoice = voices.find(v => v.voiceURI === settings.voiceURI);
+  if (selectedVoice) utter.voice = selectedVoice; utter.rate = settings.voiceRate || 1; window.speechSynthesis.speak(utter);
+});
+
+const voiceRate = document.getElementById('set-voice-rate');
+if (voiceRate) voiceRate.addEventListener('input', () => { settings.voiceRate = parseFloat(voiceRate.value); document.getElementById('voice-rate-label').textContent = settings.voiceRate.toFixed(1) + '×'; saveSettings(); });
+
+document.getElementById('advanced-toggle').addEventListener('click', (e) => {
+  const btn = e.currentTarget; const body = document.getElementById('advanced-body'); const isOpen = !body.hidden; body.hidden = isOpen; btn.setAttribute('aria-expanded', String(!isOpen));
+});
+
+document.getElementById('api-save').addEventListener('click', () => {
+  const val = document.getElementById('api-base-input').value.trim();
+  if (val) { localStorage.setItem(OVERRIDE_KEY, val.replace(/\/$/, '')); showToast('Backend URL saved. Reloading…', 'success', 1600); }
+  else { localStorage.removeItem(OVERRIDE_KEY); showToast('Reverted to default. Reloading…', 'success', 1600); }
+  localStorage.removeItem('ilmcore_session_id'); state.sessionId = null; setTimeout(() => window.location.reload(), 500);
+});
+
+document.getElementById('api-reset').addEventListener('click', () => {
+  localStorage.removeItem(OVERRIDE_KEY); localStorage.removeItem('ilmcore_session_id'); document.getElementById('api-base-input').value = ''; state.sessionId = null;
+  showToast('Reset to default. Reloading…', 'success', 1600); setTimeout(() => window.location.reload(), 500);
+});
+
+document.getElementById('api-test').addEventListener('click', async () => {
+  const url = document.getElementById('api-base-input').value.trim(); const status = document.getElementById('connection-status');
+  status.hidden = false; status.className = 'connection-status testing'; status.textContent = 'Testing connection…';
+  try { await IlmAPI.testUrl(url); status.className = 'connection-status ok'; status.textContent = '✅ Connection successful — backend is online.'; }
+  catch (err) { status.className = 'connection-status fail'; status.textContent = `❌ ${err.message || 'Connection failed'}. Check the URL and that the backend is running.`; }
+});
+
+document.getElementById('clear-all-data').addEventListener('click', () => { if (!confirm('This clears all local data and signs you out. Continue?')) return; localStorage.clear(); window.location.href = 'login.html'; });
+document.getElementById('settings-logout').addEventListener('click', doLogout);
+
+(function initVoiceInput() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) { el.voiceBtn.addEventListener('click', () => { showToast("Voice input isn't supported in this browser. Try Chrome, Edge, or Safari.", 'error', 3800); }); return; }
+  const recognition = new SpeechRecognition(); recognition.lang = 'en-US'; recognition.continuous = false; recognition.interimResults = true; recognition.maxAlternatives = 1;
+  let isRecording = false; let baseText = '';
+  recognition.addEventListener('start', () => { isRecording = true; baseText = el.chatInput.value.trim() ? el.chatInput.value.trim() + ' ' : ''; el.voiceBtn.classList.add('recording'); showToast('Listening… speak now', 'success', 1800); });
+  recognition.addEventListener('result', (event) => {
+    let interim = ''; let final = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) { const transcript = event.results[i][0].transcript; if (event.results[i].isFinal) final += transcript; else interim += transcript; }
+    el.chatInput.value = (baseText + final + interim).trim(); autoresizeInput();
+  });
+  recognition.addEventListener('error', (event) => {
+    isRecording = false; el.voiceBtn.classList.remove('recording');
+    if (event.error === 'not-allowed' || event.error === 'permission-denied' || event.error === 'service-not-allowed') showToast('Microphone access was blocked. Allow microphone permission in your browser settings and try again.', 'error', 4200);
+    else if (event.error === 'no-speech') showToast('No speech detected. Try again.', 'error', 2200);
+    else if (event.error !== 'aborted') showToast(`Voice input error: ${event.error}`, 'error');
+  });
+  recognition.addEventListener('end', () => { isRecording = false; el.voiceBtn.classList.remove('recording'); el.chatInput.focus(); });
+  el.voiceBtn.addEventListener('click', () => { if (isRecording) { recognition.stop(); return; } try { recognition.start(); } catch (_) {} });
+})();
