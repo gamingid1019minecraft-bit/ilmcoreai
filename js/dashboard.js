@@ -1101,11 +1101,9 @@ async function requestAssistantReply(text, image, file, folder, imageName) {
             scrollToBottom(false);
           } 
           else if (data.type === "file") {
-            bubble.innerHTML = renderMarkdown(data.content.text);
-            const fileCardHtml = `<div style="margin-top: 10px;"><a href="${data.content.url}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(255,255,255,0.08);border:1px solid var(--glass-border);border-radius:10px;text-decoration:none;color:inherit;font-weight:500;">📥 Download ${data.content.name}</a></div>`;
-            bubble.insertAdjacentHTML('beforeend', fileCardHtml);
-            fullReply = data.content.text;
-            scrollToBottom(false);
+            // Ignore: the backend sends the reply with the [FILE:] blocks stripped out, which used to wipe
+            // the file cards the moment streaming finished. The cards (open / copy / download / zip) are
+            // built from fullReply itself, and the saved message keeps the blocks too, so they survive reload.
           }
           else if (data.type === "done") {
             bubble.innerHTML = renderMarkdown(fullReply);
