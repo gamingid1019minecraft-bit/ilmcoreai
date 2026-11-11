@@ -141,6 +141,11 @@ function renderAttachmentPreview(innerHtml) {
     </div>
   `;
   document.getElementById('remove-image').onclick = () => clearSelectedImage();
+  const wrap = container.querySelector('.image-preview-wrapper');
+  if (wrap) {
+    wrap.style.cursor = 'pointer'; wrap.title = 'Click to view';
+    wrap.addEventListener('click', (e) => { if (e.target.closest('#remove-image')) return; previewPendingAttachment(); });
+  }
   autoresizeInput();
 }
 
@@ -227,8 +232,8 @@ el.chatInput.addEventListener('paste', async (e) => {
   // 1. Handle pasted images
   const imgItem = items.find(it => it.kind === 'file' && it.type.startsWith('image/'));
   if (imgItem) {
-    const hasText = items.some(it => it.kind === 'string' && it.type === 'text/plain');
-    if (hasText) return;
+    const plainText = ((e.clipboardData && e.clipboardData.getData('text/plain')) || '').trim();
+    if (plainText) return;
     const blob = imgItem.getAsFile();
     if (!blob) return;
     e.preventDefault();
@@ -353,19 +358,29 @@ async function loadSession(id) {
       const role = m.role || (m.is_user ? 'user' : 'assistant');
       let content = m.content || m.message || m.reply || '';
       let attachment = null;
+      const media = m.media;
 
-      const match = content.match(/^\[Attached:\s*(.+?)\]$/);
-      if (match) {
-        const fileName = match[1];
-        if (fileName.toLowerCase().match(/\.(png|jpg|jpeg|webp|gif)$/)) {
-          attachment = { image: { name: fileName } };
-        } else {
-          attachment = { file: { name: fileName, icon: fileIconFor(fileName) } };
+      if (media && media.type) {
+        const base = media.name || 'file';
+        if (media.type === 'image') {
+          attachment = role === 'assistant' ? { generatedImage: { name: base, messageId: m.id } } : { image: { name: base, messageId: m.id } };
+        } else if (media.type === 'file') {
+          attachment = { file: { name: base, icon: fileIconFor(base), isText: !!media.isText && !!media.hasData, messageId: m.id } };
+        } else if (media.type === 'folder') {
+          attachment = { folder: { name: base, count: media.count || 0 } };
         }
-        content = ""; 
-      } else if (content === "[Image attached]") {
-        attachment = { image: { name: "Image" } };
-        content = "";
+        if (/^\[Attached:\s*.+\]$/.test(content) || content === '[Image attached]') content = '';
+      } else {
+        const match = content.match(/^\[Attached:\s*(.+?)\]$/);
+        if (match) {
+          const fileName = match[1];
+          if (fileName.toLowerCase().match(/\.(png|jpg|jpeg|webp|gif)$/)) attachment = { image: { name: fileName } };
+          else attachment = { file: { name: fileName, icon: fileIconFor(fileName) } };
+          content = '';
+        } else if (content === '[Image attached]') {
+          attachment = { image: { name: 'Image' } };
+          content = '';
+        }
       }
       appendMessage(role, content, m.created_at || m.timestamp, false, attachment);
     });
@@ -592,11 +607,12 @@ function highlightToLines(code) {
 }
 
 function openFileViewer(path, content) {
-  const v = getFileViewer(); _viewerFile = { path, content };
+  const v = getFileViewer(); _viewerFile = { kind: 'text', path, content };
   const base = path.split('/').pop() || 'file'; const dot = base.lastIndexOf('.');
   const stem = dot > 0 ? base.slice(0, dot) : base; const ext = dot > 0 ? base.slice(dot + 1) : '';
   const nameEl = v.querySelector('.fv-name'); nameEl.textContent = stem.charAt(0).toUpperCase() + stem.slice(1); nameEl.title = path;
   v.querySelector('.fv-type').textContent = ext ? ' · ' + ext.toUpperCase() : '';
+  v.querySelector('.fv-code').className = 'fv-code';
   v.querySelector('.fv-code').innerHTML = highlightToLines(content).map((l, i) => `<div class="fv-line"><span class="fv-ln">${i + 1}</span><span class="fv-lc">${l || ' '}</span></div>`).join('');
   v.querySelector('.fv-code').scrollTop = 0; v.querySelector('.fv-menu').hidden = true;
   v.hidden = false; document.body.classList.add('file-viewer-open');
@@ -614,8 +630,9 @@ document.addEventListener('click', async (e) => {
     const menu = _fileViewer.querySelector('.fv-menu');
     if (e.target.closest('[data-fv-menu]')) { menu.hidden = !menu.hidden; return; }
     const fvCopy = e.target.closest('[data-fv-copy]');
-    if (fvCopy && _viewerFile) { const ok = await copyText(_viewerFile.content); menu.hidden = true; _flashBtn(_fileViewer.querySelector('.fv-copy-main'), ok ? 'Copied!' : 'Copy failed'); return; }
+    if (fvCopy && _viewerFile) { const ok = _viewerFile.kind === 'image' ? await copyImage(_viewerFile.src) : await copyText(_viewerFile.content); menu.hidden = true; _flashBtn(_fileViewer.querySelector('.fv-copy-main'), ok ? 'Copied!' : 'Copy failed'); return; }
     const fvDl = e.target.closest('[data-fv-download]');
+    if (fvDl && _viewerFile && _viewerFile.kind === 'image') { await downloadImage(_viewerFile.src, _viewerFile.path); menu.hidden = true; _flashBtn(_fileViewer.querySelector('.fv-copy-main'), 'Downloaded!'); return; }
     if (fvDl && _viewerFile) { downloadBlob(_viewerFile.path.split('/').pop() || 'file.txt', new Blob([_viewerFile.content], { type: 'text/plain;charset=utf-8' })); menu.hidden = true; _flashBtn(_fileViewer.querySelector('.fv-copy-main'), 'Downloaded!'); return; }
     if (!e.target.closest('.fv-split')) menu.hidden = true;
   }
@@ -629,6 +646,196 @@ document.addEventListener('click', async (e) => {
   const card = e.target.closest('.file-card');
   if (card && !card.classList.contains('is-writing')) { let code = ''; try { code = decodeURIComponent(card.dataset.code || ''); } catch (_) {} openFileViewer(card.dataset.path, code); }
 });
+
+/* ---------- MEDIA CARDS + IMAGE VIEWER (pasted / uploaded / AI-generated images, pasted text) ---------- */
+(function injectMediaStyles() {
+  if (document.getElementById('ilm-media-styles')) return;
+  const st = document.createElement('style'); st.id = 'ilm-media-styles';
+  st.textContent = `
+.msg-attachments{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-bottom:8px}
+.msg-img{display:block;max-width:min(340px,100%);max-height:340px;min-width:80px;min-height:60px;border-radius:12px;border:1px solid var(--glass-border);cursor:zoom-in;background:rgba(255,255,255,.05);object-fit:cover}
+.msg-img.is-loading{width:200px;height:140px;animation:ilmMediaPulse 1.2s ease-in-out infinite}
+@keyframes ilmMediaPulse{0%,100%{opacity:.45}50%{opacity:1}}
+.att-card{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:12px;border:1px solid var(--glass-border);background:rgba(255,255,255,.06);max-width:340px;cursor:pointer;color:inherit;transition:background 160ms ease}
+.att-card:hover{background:rgba(255,255,255,.1)}
+.att-card.is-static{cursor:default}.att-card.is-static:hover{background:rgba(255,255,255,.06)}
+.att-card-icon{font-size:22px;flex:none}
+.att-card-text{min-width:0}
+.att-card-name{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.att-card-meta{font-size:11.5px;opacity:.65;margin-top:2px}
+.gen-image-card{display:inline-flex;flex-direction:column;gap:8px;margin-top:10px;width:min(420px,100%);padding:8px;border-radius:14px;border:1px solid var(--glass-border);background:rgba(255,255,255,.05)}
+.gen-image-card .msg-img{max-width:100%;width:100%;max-height:420px}
+.gen-image-actions{display:flex;gap:6px;flex-wrap:wrap}
+.gen-image-actions button{padding:6px 12px;border-radius:8px;border:1px solid var(--glass-border);background:rgba(255,255,255,.08);color:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.gen-image-actions button:hover{background:rgba(255,255,255,.16)}
+.fv-code.is-image{display:flex;align-items:center;justify-content:center;padding:20px;background:#0f0f0f;font-family:inherit}
+.fv-code.is-image img{max-width:100%;max-height:calc(100vh - 120px);object-fit:contain;border-radius:8px}
+`;
+  document.head.appendChild(st);
+})();
+
+const _mediaCache = new Map();
+async function fetchMessageMedia(id) {
+  if (_mediaCache.has(id)) return _mediaCache.get(id);
+  const token = localStorage.getItem('ilmcore_token');
+  const res = await fetch(`${IlmAPI.BASE_URL}/messages/${encodeURIComponent(id)}/media`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  _mediaCache.set(id, data);
+  return data;
+}
+
+function guessImageName(url) {
+  const m = String(url || '').split('?')[0].match(/\.(png|jpe?g|webp|gif|bmp|avif)$/i);
+  return 'generated-image.' + (m ? m[1].toLowerCase().replace('jpeg', 'jpg') : 'png');
+}
+
+async function imageSrcToBlob(src) { const res = await fetch(src); if (!res.ok) throw new Error('fetch failed'); return res.blob(); }
+async function toPngBlob(blob) {
+  if (blob.type === 'image/png') return blob;
+  const bmp = await createImageBitmap(blob);
+  const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+  c.getContext('2d').drawImage(bmp, 0, 0);
+  return new Promise((res, rej) => c.toBlob(b => (b ? res(b) : rej(new Error('toBlob failed'))), 'image/png'));
+}
+async function copyImage(src) {
+  try {
+    if (!navigator.clipboard || !window.ClipboardItem) return false;
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': imageSrcToBlob(src).then(toPngBlob) })]);
+    return true;
+  } catch (_) { return false; }
+}
+async function downloadImage(src, name) {
+  try {
+    const blob = await imageSrcToBlob(src);
+    let n = name || 'image';
+    if (!/\.[a-z0-9]{2,5}$/i.test(n)) n += '.' + ((blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg'));
+    downloadBlob(n, blob);
+    return true;
+  } catch (_) { window.open(src, '_blank', 'noopener'); return false; }
+}
+async function downloadDataUrl(dataUrl, name) {
+  try { downloadBlob(name || 'file', await (await fetch(dataUrl)).blob()); } catch (_) { showToast('Could not download that file', 'error'); }
+}
+
+function openImageViewer(src, name) {
+  const v = getFileViewer(); _viewerFile = { kind: 'image', path: name || 'image.png', src };
+  const nameEl = v.querySelector('.fv-name'); nameEl.textContent = name || 'Image'; nameEl.title = name || '';
+  v.querySelector('.fv-type').textContent = ' · IMAGE';
+  const code = v.querySelector('.fv-code'); code.className = 'fv-code is-image'; code.innerHTML = '';
+  const img = document.createElement('img'); img.alt = name || 'Image'; img.src = src; code.appendChild(img);
+  code.scrollTop = 0; v.querySelector('.fv-menu').hidden = true; v.hidden = false; document.body.classList.add('file-viewer-open');
+}
+
+function buildImageEl({ src, messageId, name }) {
+  const img = document.createElement('img'); img.className = 'msg-img'; img.alt = name || 'image';
+  img.addEventListener('click', () => { if (img.src && !img.classList.contains('is-loading')) openImageViewer(img.src, name); });
+  img.addEventListener('load', () => img.classList.remove('is-loading'));
+  const unavailable = () => {
+    const chip = buildAttachCard({ icon: '🖼️', name: name || 'Image', meta: 'Image no longer available' });
+    if (img.parentNode) img.replaceWith(chip);
+  };
+  img.addEventListener('error', unavailable);
+  if (src) img.src = src;
+  else if (messageId) {
+    img.classList.add('is-loading');
+    fetchMessageMedia(messageId).then(m => { const s = m.dataUrl || m.url; if (!s) throw new Error('no data'); img.src = s; }).catch(unavailable);
+  } else unavailable();
+  return img;
+}
+
+function buildGeneratedImageCard(info) {
+  const card = document.createElement('div'); card.className = 'gen-image-card';
+  const img = buildImageEl(info); card.appendChild(img);
+  const bar = document.createElement('div'); bar.className = 'gen-image-actions';
+  const name = info.name || 'generated-image.png';
+  const mk = (label, fn) => {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
+    b.addEventListener('click', async () => {
+      if (!img.src || img.classList.contains('is-loading')) { showToast('Image is still loading', 'error', 1400); return; }
+      await fn(b, img.src);
+    });
+    bar.appendChild(b);
+  };
+  mk('Open', async (b, src) => openImageViewer(src, name));
+  mk('Copy', async (b, src) => { const ok = await copyImage(src); _flashBtn(b, ok ? 'Copied!' : 'Copy failed'); });
+  mk('Download', async (b, src) => { const ok = await downloadImage(src, name); _flashBtn(b, ok ? 'Downloaded!' : 'Opened in tab'); });
+  card.appendChild(bar);
+  return card;
+}
+
+function buildAttachCard({ icon, name, meta, onClick }) {
+  const card = document.createElement('div'); card.className = 'att-card' + (onClick ? '' : ' is-static');
+  const ic = document.createElement('span'); ic.className = 'att-card-icon'; ic.textContent = icon || '📄';
+  const tx = document.createElement('div'); tx.className = 'att-card-text';
+  const nm = document.createElement('div'); nm.className = 'att-card-name'; nm.textContent = name || 'file'; nm.title = name || '';
+  const mt = document.createElement('div'); mt.className = 'att-card-meta'; mt.textContent = meta || '';
+  tx.append(nm, mt); card.append(ic, tx);
+  if (onClick) {
+    card.tabIndex = 0; card.setAttribute('role', 'button');
+    card.addEventListener('click', onClick);
+    card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } });
+  }
+  return card;
+}
+
+function buildFileAttachment(f) {
+  const name = f.name || 'file'; const icon = f.icon || fileIconFor(name);
+  const type = fileTypeLabel(name);
+  if (f.isText && typeof f.content === 'string') {
+    const lines = f.content ? f.content.split('\n').length : 0;
+    return buildAttachCard({ icon, name, meta: `${type} · ${lines} ${lines === 1 ? 'line' : 'lines'} · tap to view`, onClick: () => openFileViewer(name, f.content) });
+  }
+  if (f.isText && f.messageId) {
+    return buildAttachCard({ icon, name, meta: `${type} · tap to view`, onClick: async () => {
+      try { const m = await fetchMessageMedia(f.messageId); if (typeof m.content === 'string') openFileViewer(name, m.content); else showToast('No preview available', 'error', 1800); }
+      catch (_) { showToast('Could not load that file', 'error'); }
+    } });
+  }
+  if (typeof f.content === 'string' && f.content.startsWith('data:')) {
+    return buildAttachCard({ icon, name, meta: `${type} · tap to download`, onClick: () => downloadDataUrl(f.content, name) });
+  }
+  return buildAttachCard({ icon, name, meta: type });
+}
+
+function attachMediaToBubble(row, attachment) {
+  if (!attachment) return;
+  const bubble = row.querySelector('.msg-bubble');
+  if (attachment.generatedImage) { bubble.appendChild(buildGeneratedImageCard(attachment.generatedImage)); return; }
+  const wrap = document.createElement('div'); wrap.className = 'msg-attachments';
+  if (attachment.image) {
+    const im = attachment.image;
+    if (im.dataUrl || im.url || im.messageId) wrap.appendChild(buildImageEl({ src: im.dataUrl || im.url, messageId: im.messageId, name: im.name }));
+    else wrap.appendChild(buildAttachCard({ icon: '🖼️', name: im.name || 'Image', meta: 'Image · preview not saved' }));
+  }
+  if (attachment.file) wrap.appendChild(buildFileAttachment(attachment.file));
+  if (attachment.folder) wrap.appendChild(buildAttachCard({ icon: '📁', name: attachment.folder.name, meta: `${attachment.folder.count} files` }));
+  if (wrap.children.length) bubble.insertBefore(wrap, bubble.firstChild);
+}
+
+function previewPendingAttachment() {
+  if (uploadedImageBase64) { openImageViewer(uploadedImageBase64, uploadedImageName || 'Image'); return; }
+  if (uploadedFile) { if (uploadedFile.isText) openFileViewer(uploadedFile.name, uploadedFile.content); else showToast('No preview for this file type', 'error', 1800); return; }
+  if (uploadedFolder) showToast(`${uploadedFolder.count} files in this folder`, 'success', 1800);
+}
+
+function adoptSession(sessionId, text) {
+  if (sessionId === undefined || sessionId === null) return;
+  const isNew = String(state.sessionId) !== String(sessionId);
+  state.sessionId = sessionId; localStorage.setItem('ilmcore_session_id', sessionId);
+  if (isNew) { const t = text || 'New conversation'; el.currentChatTitle.textContent = t.length > 40 ? t.slice(0, 40) + '…' : t; }
+  loadSessionsList();
+}
+
+function sendChatRequest(message, sessionId, image, file, folder, imageName) {
+  const token = localStorage.getItem('ilmcore_token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return fetch(`${IlmAPI.BASE_URL}/chat`, {
+    method: 'POST', headers,
+    body: JSON.stringify({ message, session_id: sessionId, image: image || null, image_name: imageName || null, file: file || null, folder: folder || null }),
+  });
+}
 
 function renderMarkdown(text) {
   if (!text) return '';
@@ -693,32 +900,10 @@ function appendMessage(role, content, timestamp, animate = true, attachment = nu
   if (!animate) row.style.animation = 'none';
   const avatarSrc = role === 'user' ? 'assets/user.png' : 'assets/ai.png';
 
-  let attachmentHtml = '';
-  if (attachment && attachment.image) {
-    const imgSrc = attachment.image.dataUrl || 'assets/user.png'; // Fallback if no data URL
-    attachmentHtml = `
-      <div class="msg-attached-file" style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:10px;padding:8px 12px;margin-bottom:8px;max-width:260px;">
-        <img src="${imgSrc}" style="max-height:60px; border-radius:4px;">
-        <span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(attachment.image.name || 'image')}</span>
-      </div>`;
-  } else if (attachment && attachment.file) {
-    attachmentHtml = `
-      <div class="msg-attached-file" style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:10px;padding:8px 12px;margin-bottom:8px;max-width:260px;">
-        <span style="font-size:20px;">${attachment.file.icon}</span>
-        <span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(attachment.file.name)}</span>
-      </div>`;
-  } else if (attachment && attachment.folder) {
-    attachmentHtml = `
-      <div class="msg-attached-file" style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.06);border:1px solid var(--glass-border);border-radius:10px;padding:8px 12px;margin-bottom:8px;max-width:260px;">
-        <span style="font-size:20px;">📁</span>
-        <span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(attachment.folder.name)} (${attachment.folder.count} files)</span>
-      </div>`;
-  }
-
   row.innerHTML = `
     <img class="msg-avatar" src="${avatarSrc}" alt="${role}" />
     <div class="msg-body">
-      <div class="msg-bubble">${attachmentHtml}${renderMarkdown(content)}</div>
+      <div class="msg-bubble">${renderMarkdown(content)}</div>
       <div class="msg-meta">
         <span>${formatTimestamp(timestamp)}</span>
         ${role === 'assistant' ? `
@@ -733,6 +918,7 @@ function appendMessage(role, content, timestamp, animate = true, attachment = nu
     </div>
   `;
   el.chatInner.appendChild(row);
+  attachMediaToBubble(row, attachment);
   wireMessageActions(row, content);
   renderMath(row);
   scrollToBottom();
@@ -834,21 +1020,21 @@ async function sendMessage() {
   el.chatInput.value = '';
   autoresizeInput();
 
-  await requestAssistantReply(text, imageForThisMessage, fileForThisMessage, folderForThisMessage);
+  await requestAssistantReply(text, imageForThisMessage, fileForThisMessage, folderForThisMessage, imageNameForThisMessage);
 }
 
-async function requestAssistantReply(text, image, file, folder) {
+async function requestAssistantReply(text, image, file, folder, imageName) {
   state.isSending = true;
   el.sendBtn.disabled = true;
   const typingRow = appendTypingIndicator();
   clearSelectedImage();
 
   try {
-    const response = await IlmAPI.chat(text, state.sessionId, image, file, folder);
+    const response = await sendChatRequest(text, state.sessionId, image, file, folder, imageName);
     
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.error || `HTTP Error: ${response.status}`);
+      throw new Error(errData.error || errData.reply || `HTTP Error: ${response.status}`);
     }
 
     const contentType = response.headers.get("content-type");
@@ -856,9 +1042,12 @@ async function requestAssistantReply(text, image, file, folder) {
     if (contentType && contentType.includes("application/json")) {
         const jsonData = await response.json();
         typingRow.remove();
-        
-        // If it's an image generation response, handle the file card
-        if (jsonData.file_url) {
+        adoptSession(jsonData.session_id, text);
+
+        // AI-generated / edited image: show it in chat as a card (open in viewer, copy, download)
+        if (jsonData.image_url) {
+            appendMessage('assistant', jsonData.reply, new Date(), true, { generatedImage: { name: guessImageName(jsonData.image_url), url: jsonData.image_url } });
+        } else if (jsonData.file_url) {
             const row = appendMessage('assistant', jsonData.reply, new Date());
             const bubble = row.querySelector('.msg-bubble');
             const fileCardHtml = `<div style="margin-top: 10px;"><a href="${jsonData.file_url}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(255,255,255,0.08);border:1px solid var(--glass-border);border-radius:10px;text-decoration:none;color:inherit;font-weight:500;">📥 Download ${jsonData.file_label}</a></div>`;
@@ -904,13 +1093,7 @@ async function requestAssistantReply(text, image, file, folder) {
           try { data = JSON.parse(dataStr); } catch(e) { continue; }
 
           if (data.type === "meta") {
-            if (data.content.session_id !== undefined && data.content.session_id !== null) {
-              const isNewSession = String(state.sessionId) !== String(data.content.session_id);
-              state.sessionId = data.content.session_id;
-              localStorage.setItem('ilmcore_session_id', state.sessionId);
-              if (isNewSession) el.currentChatTitle.textContent = text.length > 40 ? text.slice(0, 40) + '…' : text;
-              loadSessionsList();
-            }
+            adoptSession(data.content.session_id, text);
           } 
           else if (data.type === "chunk") {
             fullReply += data.content;
