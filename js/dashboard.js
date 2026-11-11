@@ -652,6 +652,9 @@ document.addEventListener('click', async (e) => {
   if (document.getElementById('ilm-media-styles')) return;
   const st = document.createElement('style'); st.id = 'ilm-media-styles';
   st.textContent = `
+.input-area{flex-direction:column;align-items:center}
+#image-preview-container{width:100%;max-width:820px;justify-content:flex-start !important;margin:0 0 8px !important;padding:0 6px !important}
+#image-preview-container:empty{display:none !important;margin:0 !important}
 .msg-attachments{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-bottom:8px}
 .msg-img{display:block;max-width:min(340px,100%);max-height:340px;min-width:80px;min-height:60px;border-radius:12px;border:1px solid var(--glass-border);cursor:zoom-in;background:rgba(255,255,255,.05);object-fit:cover}
 .msg-img.is-loading{width:200px;height:140px;animation:ilmMediaPulse 1.2s ease-in-out infinite}
