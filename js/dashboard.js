@@ -746,7 +746,7 @@ function buildImageEl({ src, messageId, name }) {
 
 function buildGeneratedImageCard(info) {
   const card = document.createElement('div'); card.className = 'gen-image-card';
-  const img = buildImageEl(info); card.appendChild(img);
+  const img = buildImageEl({ ...info, src: info.src || info.dataUrl || info.url }); card.appendChild(img);
   const bar = document.createElement('div'); bar.className = 'gen-image-actions';
   const name = info.name || 'generated-image.png';
   const mk = (label, fn) => {
@@ -1046,7 +1046,7 @@ async function requestAssistantReply(text, image, file, folder, imageName) {
 
         // AI-generated / edited image: show it in chat as a card (open in viewer, copy, download)
         if (jsonData.image_url) {
-            appendMessage('assistant', jsonData.reply, new Date(), true, { generatedImage: { name: guessImageName(jsonData.image_url), url: jsonData.image_url } });
+            appendMessage('assistant', jsonData.reply, new Date(), true, { generatedImage: { name: guessImageName(jsonData.image_url), dataUrl: jsonData.image_data || null, url: jsonData.image_url } });
         } else if (jsonData.file_url) {
             const row = appendMessage('assistant', jsonData.reply, new Date());
             const bubble = row.querySelector('.msg-bubble');
