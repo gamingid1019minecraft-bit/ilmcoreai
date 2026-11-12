@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.vercel.ilmcoreai.twa",
+        "sha256_cert_fingerprints": ["E6:A1:82:DF:A6:71:69:9E:AB:DC:1E:48:BE:87:36:8F:BB:DB:E1:66:F4:E2:AA:D5:E5:80:87:E0:91:52:15:8B"]
+      }
+    }]
