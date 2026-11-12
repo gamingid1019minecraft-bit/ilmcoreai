@@ -830,12 +830,12 @@ function adoptSession(sessionId, text) {
   loadSessionsList();
 }
 
-function sendChatRequest(message, sessionId, image, file, folder, imageName) {
+function sendChatRequest(message, sessionId, image, file, folder, imageName, signal) {
   const token = localStorage.getItem('ilmcore_token');
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   return fetch(`${IlmAPI.BASE_URL}/chat`, {
-    method: 'POST', headers,
+    method: 'POST', headers, signal,
     body: JSON.stringify({ message, session_id: sessionId, image: image || null, image_name: imageName || null, file: file || null, folder: folder || null }),
   });
 }
@@ -1007,6 +1007,7 @@ async function sendMessage() {
   const text = el.chatInput.value.trim();
   const hasAttachment = !!(uploadedImageBase64 || uploadedFile || uploadedFolder);
   if ((!text && !hasAttachment) || state.isSending) return;
+  maybeAskNotificationPermission();
 
   const imageForThisMessage = uploadedImageBase64;
   const imageNameForThisMessage = uploadedImageName;
@@ -1026,16 +1027,81 @@ async function sendMessage() {
   await requestAssistantReply(text, imageForThisMessage, fileForThisMessage, folderForThisMessage, imageNameForThisMessage);
 }
 
+/* ---------- BACKGROUND REPLIES + "IlmCoreAI" NOTIFICATION ---------- */
+let _pendingReq = null;
+
+function maybeAskNotificationPermission() {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'default') return;
+    if (localStorage.getItem('ilmcore_notif_asked')) return;
+    localStorage.setItem('ilmcore_notif_asked', '1');
+    Notification.requestPermission().catch(() => {});
+  } catch (_) {}
+}
+
+async function notifyReply(text, sessionId) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  let body = String(text || '')
+    .replace(/\[FILE:[^\]]*\][\s\S]*?\[\/FILE\]/gi, '[file]')
+    .replace(/```[\s\S]*?```/g, '[code]')
+    .replace(/[#*_`>~]/g, '').replace(/\s+/g, ' ').trim();
+  if (body.length > 140) body = body.slice(0, 137) + '…';
+  const opts = { body: body || 'Your answer is ready', icon: '/favicon-192.png', badge: '/favicon-96x96.png', tag: 'ilmcore-reply', renotify: true, data: { sessionId } };
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (reg) { await reg.showNotification('IlmCoreAI', opts); return; }
+  } catch (_) {}
+  try { new Notification('IlmCoreAI', opts); } catch (_) {}
+}
+
+// The connection dropped (phone locked / app switched). The backend keeps generating and saves the answer,
+// so we poll the saved messages until it shows up, then show it and notify.
+async function recoverReply(sessionId, text) {
+  state.isSending = true; el.sendBtn.disabled = true;
+  const typing = appendTypingIndicator();
+  showToast('Connection paused — finishing your answer in the background…', 'success', 2500);
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  const sent = (text || '').trim();
+  let missing = 0, reply = null;
+  for (let i = 0; i < 100 && !reply; i++) {
+    await sleep(i < 3 ? 1500 : 3000);
+    let list;
+    try { const d = await IlmAPI.getMessages(sessionId); list = (d && (d.messages || d)) || []; } catch (_) { continue; }
+    let lu = -1;
+    for (let k = list.length - 1; k >= 0; k--) { if (list[k].role === 'user') { lu = k; break; } }
+    const matches = lu >= 0 && (!sent || (list[lu].content || '').trim() === sent);
+    if (!matches) { if (++missing >= 5) break; continue; }
+    reply = list.slice(lu + 1).find(m => m.role === 'assistant') || null;
+  }
+  typing.remove();
+  state.isSending = false; autoresizeInput();
+  if (!reply) {
+    appendMessage('assistant', "I couldn't confirm that answer finished. Re-open this chat in a moment — it may still show up.", new Date());
+    showToast('Message failed to send', 'error');
+    return;
+  }
+  if (String(state.sessionId) === String(sessionId)) await loadSession(sessionId);
+  if (settings.sound) playChime();
+  if (document.hidden || String(state.sessionId) !== String(sessionId)) notifyReply(reply.content, sessionId);
+}
+
 async function requestAssistantReply(text, image, file, folder, imageName) {
   state.isSending = true;
   el.sendBtn.disabled = true;
   const typingRow = appendTypingIndicator();
   clearSelectedImage();
 
+  const ctrl = new AbortController();
+  const req = { ctrl, lastDataAt: Date.now(), wasHidden: document.hidden, gotMeta: false, hadSession: !!state.sessionId, httpFailed: false };
+  _pendingReq = req;
+  let streamRow = null;
+  let sawDone = false;
+
   try {
-    const response = await sendChatRequest(text, state.sessionId, image, file, folder, imageName);
+    const response = await sendChatRequest(text, state.sessionId, image, file, folder, imageName, ctrl.signal);
     
     if (!response.ok) {
+      req.httpFailed = true;
       const errData = await response.json().catch(() => ({}));
       throw new Error(errData.error || errData.reply || `HTTP Error: ${response.status}`);
     }
@@ -1044,6 +1110,7 @@ async function requestAssistantReply(text, image, file, folder, imageName) {
     
     if (contentType && contentType.includes("application/json")) {
         const jsonData = await response.json();
+        _pendingReq = null;
         typingRow.remove();
         adoptSession(jsonData.session_id, text);
 
@@ -1063,6 +1130,7 @@ async function requestAssistantReply(text, image, file, folder, imageName) {
         state.isSending = false;
         autoresizeInput();
         if (settings.sound) playChime();
+        if (document.hidden) notifyReply(jsonData.reply, state.sessionId);
         if (settings.autoNarrate) {
           const narrateBtn = document.querySelector('.msg-row.assistant:last-child .action-narrate');
           if (narrateBtn) toggleNarration(jsonData.reply, narrateBtn);
@@ -1072,6 +1140,7 @@ async function requestAssistantReply(text, image, file, folder, imageName) {
 
     typingRow.remove();
     const row = appendMessage('assistant', '', new Date());
+    streamRow = row;
     const bubble = row.querySelector('.msg-bubble');
     
     const reader = response.body.getReader();
@@ -1083,6 +1152,7 @@ async function requestAssistantReply(text, image, file, folder, imageName) {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      req.lastDataAt = Date.now();
 
       const chunk = decoder.decode(value, { stream: true });
       const lines = chunk.split("\n");
@@ -1096,6 +1166,7 @@ async function requestAssistantReply(text, image, file, folder, imageName) {
           try { data = JSON.parse(dataStr); } catch(e) { continue; }
 
           if (data.type === "meta") {
+            req.gotMeta = true;
             adoptSession(data.content.session_id, text);
           } 
           else if (data.type === "chunk") {
@@ -1109,6 +1180,7 @@ async function requestAssistantReply(text, image, file, folder, imageName) {
             // built from fullReply itself, and the saved message keeps the blocks too, so they survive reload.
           }
           else if (data.type === "done") {
+            sawDone = true;
             bubble.innerHTML = renderMarkdown(fullReply);
             renderMath(bubble);
           }
@@ -1116,9 +1188,14 @@ async function requestAssistantReply(text, image, file, folder, imageName) {
       }
     }
 
+    // Stream ended without the "done" event = connection was cut (e.g. phone locked): recover from the saved answer.
+    if (!sawDone) throw new Error('stream interrupted');
+
+    _pendingReq = null;
     state.isSending = false;
     autoresizeInput();
     if (settings.sound) playChime();
+    if (document.hidden) notifyReply(fullReply, state.sessionId);
 
     if (settings.autoNarrate) {
       const narrateBtn = row.querySelector('.action-narrate');
@@ -1126,7 +1203,11 @@ async function requestAssistantReply(text, image, file, folder, imageName) {
     }
 
   } catch (err) {
+    _pendingReq = null;
     typingRow.remove();
+    if (streamRow) streamRow.remove();
+    const sid = state.sessionId;
+    if (!req.httpFailed && sid && (req.gotMeta || req.hadSession)) { recoverReply(sid, text); return; }
     appendMessage('assistant', `I couldn't reach the backend: **${escapeHtml(err.message || 'unknown error')}**. Please try again.`, new Date());
     state.isSending = false;
     autoresizeInput();
@@ -1257,4 +1338,24 @@ document.getElementById('settings-logout').addEventListener('click', doLogout);
   });
   recognition.addEventListener('end', () => { isRecording = false; el.voiceBtn.classList.remove('recording'); el.chatInput.focus(); });
   el.voiceBtn.addEventListener('click', () => { if (isRecording) { recognition.stop(); return; } try { recognition.start(); } catch (_) {} });
+})();
+
+/* ---------- Service worker (notifications) + resume handling ---------- */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    const d = e.data || {};
+    if (d.type === 'open-session' && d.sessionId && String(d.sessionId) !== String(state.sessionId) && !state.isSending) loadSession(d.sessionId);
+  });
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { if (_pendingReq) _pendingReq.wasHidden = true; return; }
+  // Back on screen: if the stream went quiet while we were away it is probably dead -> switch to background recovery.
+  if (_pendingReq && _pendingReq.wasHidden && Date.now() - _pendingReq.lastDataAt > 4000) {
+    try { _pendingReq.ctrl.abort(); } catch (_) {}
+  }
+});
+(() => {
+  const openId = new URLSearchParams(location.search).get('open');
+  if (openId) setTimeout(() => { loadSession(openId); history.replaceState(null, '', location.pathname); }, 700);
 })();
