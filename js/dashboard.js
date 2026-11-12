@@ -655,6 +655,14 @@ document.addEventListener('click', async (e) => {
 .input-area{flex-direction:column;align-items:center}
 #image-preview-container{width:100%;max-width:820px;justify-content:flex-start !important;margin:0 0 8px !important;padding:0 6px !important}
 #image-preview-container:empty{display:none !important;margin:0 !important}
+.chat-scroll{overflow-x:hidden}
+.msg-body{min-width:0}
+.msg-bubble{min-width:0;max-width:100%;overflow-wrap:anywhere}
+.msg-bubble .code-block{max-width:100%}
+.msg-bubble table{display:block;max-width:100%;overflow-x:auto;border-collapse:collapse;margin:10px 0;-webkit-overflow-scrolling:touch}
+.msg-bubble th,.msg-bubble td{padding:8px 12px;border:1px solid var(--glass-border);text-align:left;vertical-align:top;min-width:90px}
+.msg-bubble th{background:rgba(255,255,255,.06);font-weight:600}
+.msg-bubble img,.msg-bubble video{max-width:100%}
 .msg-attachments{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-bottom:8px}
 .msg-img{display:block;max-width:min(340px,100%);max-height:340px;min-width:80px;min-height:60px;border-radius:12px;border:1px solid var(--glass-border);cursor:zoom-in;background:rgba(255,255,255,.05);object-fit:cover}
 .msg-img.is-loading{width:200px;height:140px;animation:ilmMediaPulse 1.2s ease-in-out infinite}
