@@ -17,3 +17,13 @@ self.addEventListener('notificationclick', (event) => {
     await self.clients.openWindow('/dashboard.html' + (sid ? '?open=' + encodeURIComponent(sid) : ''));
   })());
 });
+
+// Required for installability: pass requests through; if a page load fails offline, show a small message.
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET' || req.mode !== 'navigate') return;
+  event.respondWith(fetch(req).catch(() => new Response(
+    '<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:sans-serif;background:#0a0d18;color:#fff;display:grid;place-items:center;height:100vh;margin:0;text-align:center"><div><h2>You\'re offline</h2><p>Connect to the internet to use IlmCore AI.</p></div>',
+    { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+  )));
+});
