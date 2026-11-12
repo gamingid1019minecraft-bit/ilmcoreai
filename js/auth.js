@@ -287,20 +287,18 @@ async function initGoogleSignIn() {
       auto_select: false,
     });
 
-    trigger.addEventListener('click', () => {
-      // Prompt Google's One Tap / account chooser
-      window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed()) {
-          const reason = notification.getNotDisplayedReason();
-          console.warn('[Google Sign-In] Not displayed:', reason);
-          showToast(googleFailureMessage(reason), 'error', 5000);
-        } else if (notification.isSkippedMoment()) {
-          const reason = notification.getSkippedReason();
-          console.warn('[Google Sign-In] Skipped:', reason);
-          showToast(googleFailureMessage(reason), 'error', 5000);
-        }
-      });
+    // One Tap (google.accounts.id.prompt) depends on browser Google cookies / FedCM and silently fails inside an
+    // installed app (Android TWA). Google's official button opens a normal sign-in popup instead, which works
+    // in the browser AND in the installed app, so we show that button in place of our custom one.
+    const width = Math.min(Math.max(trigger.offsetWidth || (trigger.parentElement && trigger.parentElement.clientWidth) || 300, 200), 400);
+    const holder = document.createElement('div');
+    holder.id = 'google-official-btn';
+    holder.style.cssText = 'display:flex;justify-content:center;width:100%;min-height:44px;';
+    trigger.insertAdjacentElement('afterend', holder);
+    window.google.accounts.id.renderButton(holder, {
+      type: 'standard', theme: 'filled_black', size: 'large', text: 'continue_with', shape: 'pill', logo_alignment: 'left', width,
     });
+    trigger.style.display = 'none';
   } catch (_) {
     trigger.addEventListener('click', () => {
       showToast('Could not load Google Sign-In. Check your connection.', 'error');
