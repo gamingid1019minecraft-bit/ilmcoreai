@@ -8,6 +8,11 @@
 <link rel="icon" href="assets/logo.png" type="image/png" />
 <link rel="manifest" href="/manifest.webmanifest" />
 <meta name="theme-color" content="#05070d" />
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="IlmCore AI" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" />
@@ -62,6 +67,18 @@ ol.steps{margin-left:20px;display:grid;gap:8px;font-size:14.5px;line-height:1.55
 .change{display:inline-block;margin-top:16px;background:none;border:0;color:#a5b4fc;font-size:14px;font-family:inherit;cursor:pointer;text-decoration:underline}
 .ios-steps{margin:18px 0 6px;text-align:left}
 .install[hidden]{display:none}
+
+.share-ico{display:inline-block;vertical-align:-4px;width:20px;height:20px;margin:0 2px}
+.ios-warn{display:none;margin-top:14px;padding:12px 14px;border-radius:12px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.35);color:#fde68a;font-size:14px;text-align:left;line-height:1.5}
+.ios-warn.show{display:block}
+.ios-done{display:none;margin-top:14px;padding:12px 14px;border-radius:12px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);color:#bbf7d0;font-size:14px}
+.ios-done.show{display:block}
+.pointer{position:fixed;left:0;right:0;bottom:0;z-index:50;display:none;flex-direction:column;align-items:center;padding:14px 16px calc(env(safe-area-inset-bottom,0px) + 4px);background:linear-gradient(to top,rgba(5,7,13,.96) 55%,transparent);pointer-events:none}
+.pointer.show{display:flex}
+.pointer p{font-size:14px;font-weight:600;color:#fff;text-align:center;margin-bottom:4px}
+.pointer svg{width:34px;height:34px;color:#a78bfa;animation:bob 1s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(-6px)}50%{transform:translateY(6px)}}
+@media (prefers-reduced-motion:reduce){.pointer svg{animation:none}}
 @media (prefers-reduced-motion:reduce){.ring .fg{transition:none}}
 </style>
 </head>
@@ -110,17 +127,21 @@ ol.steps{margin-left:20px;display:grid;gap:8px;font-size:14.5px;line-height:1.55
       <noscript><p class="note">JavaScript is off. Android: <a style="color:#a5b4fc" href="/ilmcoreai.apk" download>download the APK</a>. Windows: <a style="color:#a5b4fc" href="https://www.dropbox.com/scl/fi/aibp8khqgut120ganhukg/Ilmcore.exe?rlkey=bj6wa7vbf4bp59nnzhbl00d13&amp;st=02ygons6&amp;dl=1">download the EXE</a>.</p></noscript>
     </div>
 
-    <!-- iPhone: install steps -->
+    <!-- iPhone: install as app (PWA) -->
     <div class="panel" id="p-ios" hidden>
-      <h1>IlmCore AI for iPhone</h1>
-      <p class="sub">Free. There is nothing to download. Install it from Safari in three taps.</p>
-      <ol class="steps ios-steps">
-        <li>Open IlmCore AI in <b>Safari</b> (it must be Safari, not Chrome).</li>
-        <li>Tap the <b>Share</b> button (the square with an arrow) at the bottom of the screen.</li>
-        <li>Scroll down, tap <b>Add to Home Screen</b>, then tap <b>Add</b>.</li>
+      <h1>Install IlmCore AI on iPhone</h1>
+      <p class="sub">Free. It installs as a real app on your Home Screen, with its own icon. No App Store needed.</p>
+      <div class="ios-done" id="ios-done">✅ IlmCore AI is already installed on this device.</div>
+      <div class="ios-warn" id="ios-warn">You're not in <b>Safari</b>. Tap <b>Copy link</b> below, open <b>Safari</b>, paste it in the address bar, then follow the steps.</div>
+      <ol class="steps ios-steps" id="ios-steps">
+        <li>Tap the <b>Share</b> button <svg class="share-ico" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M6 11H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1"/></svg> at the bottom of Safari.</li>
+        <li>Scroll down and tap <b>Add to Home Screen</b>.</li>
+        <li>Tap <b>Add</b> in the top corner. Leave <b>Open as Web App</b> switched on if you see it.</li>
+        <li>Open <b>IlmCore AI</b> from your Home Screen and sign in or create a free account.</li>
       </ol>
       <div class="btns" style="margin-top:14px">
-        <a class="btn btn-primary" href="/index.html">Open IlmCore AI</a>
+        <button class="btn btn-primary" id="ios-guide" type="button">Show me where to tap</button>
+        <button class="btn btn-ghost" id="ios-copy" type="button">Copy link</button>
       </div>
       <button class="change" type="button" data-change>Not your device? Choose again</button>
     </div>
@@ -159,6 +180,8 @@ ol.steps{margin-left:20px;display:grid;gap:8px;font-size:14.5px;line-height:1.55
     <p class="note">Prefer no download? Open IlmCore AI in Edge or Chrome and click the <b>Install</b> icon in the address bar.</p>
   </section>
 </main>
+
+<div class="pointer" id="pointer" aria-hidden="true"><p>Tap Share, then “Add to Home Screen”</p><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M5 13l7 7 7-7"/></svg></div>
 
 <script>
 (function () {
@@ -226,9 +249,37 @@ ol.steps{margin-left:20px;display:grid;gap:8px;font-size:14.5px;line-height:1.55
     again.href = t.file; again.setAttribute('download', t.name); again.hidden = false;
   }
 
+
+  // ---- iPhone: iOS cannot auto-install a PWA, so guide the user to Share -> Add to Home Screen
+  var pointer = $('pointer'), pointerTimer = null;
+  function isIPhone() { return /iphone|ipod/i.test(navigator.userAgent || ''); }
+  function isSafari() { var ua = navigator.userAgent || ''; return /safari/i.test(ua) && !/crios|fxios|edgios|opios|gsa|instagram|fban|fbav|line|twitter/i.test(ua); }
+  function showPointer() {
+    if (!isIPhone() || !isSafari()) return;
+    pointer.classList.add('show');
+    clearTimeout(pointerTimer);
+    pointerTimer = setTimeout(hidePointer, 15000);
+  }
+  function hidePointer() { pointer.classList.remove('show'); clearTimeout(pointerTimer); }
+  function iosSetup() {
+    var installed = window.navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+    $('ios-done').classList.toggle('show', installed);
+    $('ios-steps').hidden = installed;
+    $('ios-warn').classList.toggle('show', !installed && !isSafari());
+    if (!installed) setTimeout(showPointer, 600);
+  }
+  $('ios-guide').addEventListener('click', showPointer);
+  $('ios-copy').addEventListener('click', function () {
+    var b = this, url = location.origin + '/dashboard.html';
+    function done(ok) { b.textContent = ok ? 'Link copied ✓' : 'Copy failed'; setTimeout(function () { b.textContent = 'Copy link'; }, 2000); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(function () { done(true); }, function () { done(false); });
+    else { var ta = document.createElement('textarea'); ta.value = url; document.body.appendChild(ta); ta.select(); var ok = false; try { ok = document.execCommand('copy'); } catch (e) {} ta.remove(); done(ok); }
+  });
+  document.addEventListener('touchstart', function () { if (pointer.classList.contains('show')) hidePointer(); }, { passive: true });
+
   function choose(os) {
     clearInterval(timer);
-    if (os === 'iphone') { showOnly(pIos); return; }
+    if (os === 'iphone') { showOnly(pIos); iosSetup(); return; }
     cur = os; started = false; n = START;
     var t = TARGETS[os];
     title.textContent = t.title;
@@ -243,6 +294,7 @@ ol.steps{margin-left:20px;display:grid;gap:8px;font-size:14.5px;line-height:1.55
   }
 
   function reset() {
+    hidePointer();
     clearInterval(timer); started = false; cur = null;
     showOnly(pChoose);
   }
