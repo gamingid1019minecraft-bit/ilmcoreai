@@ -75,8 +75,14 @@ ol.steps{margin-left:20px;display:grid;gap:8px;font-size:14.5px;line-height:1.55
 .ios-done.show{display:block}
 .pointer{position:fixed;left:0;right:0;bottom:0;z-index:50;display:none;flex-direction:column;align-items:center;padding:14px 16px calc(env(safe-area-inset-bottom,0px) + 4px);background:linear-gradient(to top,rgba(5,7,13,.96) 55%,transparent);pointer-events:none}
 .pointer.show{display:flex}
+.pointer.top{top:0;bottom:auto;align-items:flex-end;padding:calc(env(safe-area-inset-top,0px) + 4px) 18px 14px;background:linear-gradient(to bottom,rgba(5,7,13,.96) 55%,transparent)}
+.pointer.top p{order:2;text-align:right;margin:4px 0 0;max-width:230px}
+.pointer.top svg{order:1;transform:none;animation:bobup 1s ease-in-out infinite;margin-right:6px}
+@keyframes bobup{0%,100%{transform:translateY(6px) rotate(180deg)}50%{transform:translateY(-6px) rotate(180deg)}}
+.pointer button{pointer-events:auto;margin-top:8px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:999px;padding:6px 16px;font-size:13px;font-family:inherit;cursor:pointer}
+.pointer.top button{order:3;align-self:center}
 .pointer p{font-size:14px;font-weight:600;color:#fff;text-align:center;margin-bottom:4px}
-.pointer svg{width:34px;height:34px;color:#a78bfa;animation:bob 1s ease-in-out infinite}
+.pointer svg{width:34px;height:34px;color:#a78bfa;animation:bob 1s ease-in-out infinite;transform:none}
 @keyframes bob{0%,100%{transform:translateY(-6px)}50%{transform:translateY(6px)}}
 @media (prefers-reduced-motion:reduce){.pointer svg{animation:none}}
 @media (prefers-reduced-motion:reduce){.ring .fg{transition:none}}
@@ -181,7 +187,7 @@ ol.steps{margin-left:20px;display:grid;gap:8px;font-size:14.5px;line-height:1.55
   </section>
 </main>
 
-<div class="pointer" id="pointer" aria-hidden="true"><p>Tap Share, then “Add to Home Screen”</p><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M5 13l7 7 7-7"/></svg></div>
+<div class="pointer" id="pointer"><p id="pointer-text">Tap Share, then “Add to Home Screen”</p><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M5 13l7 7 7-7"/></svg><button type="button" id="pointer-close">Got it</button></div>
 
 <script>
 (function () {
@@ -251,16 +257,25 @@ ol.steps{margin-left:20px;display:grid;gap:8px;font-size:14.5px;line-height:1.55
 
 
   // ---- iPhone: iOS cannot auto-install a PWA, so guide the user to Share -> Add to Home Screen
-  var pointer = $('pointer'), pointerTimer = null;
-  function isIPhone() { return /iphone|ipod/i.test(navigator.userAgent || ''); }
-  function isSafari() { var ua = navigator.userAgent || ''; return /safari/i.test(ua) && !/crios|fxios|edgios|opios|gsa|instagram|fban|fbav|line|twitter/i.test(ua); }
+  var pointer = $('pointer'), pointerText = $('pointer-text'), pointerTimer = null;
+  var UA = navigator.userAgent || '';
+  function isIOS() { return /iphone|ipad|ipod/i.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1); }
+  function isIPad() { return /ipad/i.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1); }
+  function isSafari() { return /safari/i.test(UA) && !/crios|fxios|edgios|opios|gsa|instagram|fban|fbav|line\/|twitter/i.test(UA); }
+  function isChromeLike() { return /crios|edgios/i.test(UA); }
   function showPointer() {
-    if (!isIPhone() || !isSafari()) return;
+    // Safari on iPhone: Share is in the bottom bar. iPad Safari / Chrome or Edge on iOS: Share is at the top right.
+    if (isSafari() && !isIPad()) {
+      pointer.classList.remove('top'); pointerText.textContent = 'Tap Share, then “Add to Home Screen”';
+    } else if (isIOS() && (isSafari() || isChromeLike())) {
+      pointer.classList.add('top'); pointerText.textContent = 'Tap the Share icon up here, then “Add to Home Screen”';
+    } else { return; }
     pointer.classList.add('show');
     clearTimeout(pointerTimer);
-    pointerTimer = setTimeout(hidePointer, 15000);
+    pointerTimer = setTimeout(hidePointer, 30000);
   }
   function hidePointer() { pointer.classList.remove('show'); clearTimeout(pointerTimer); }
+  $('pointer-close').addEventListener('click', hidePointer);
   function iosSetup() {
     var installed = window.navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
     $('ios-done').classList.toggle('show', installed);
@@ -275,7 +290,6 @@ ol.steps{margin-left:20px;display:grid;gap:8px;font-size:14.5px;line-height:1.55
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(function () { done(true); }, function () { done(false); });
     else { var ta = document.createElement('textarea'); ta.value = url; document.body.appendChild(ta); ta.select(); var ok = false; try { ok = document.execCommand('copy'); } catch (e) {} ta.remove(); done(ok); }
   });
-  document.addEventListener('touchstart', function () { if (pointer.classList.contains('show')) hidePointer(); }, { passive: true });
 
   function choose(os) {
     clearInterval(timer);
