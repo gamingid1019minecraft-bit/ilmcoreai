@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Download IlmCore AI for Android</title>
-<meta name="description" content="Download the free IlmCore AI Android app. Chat, generate images, read files, search the web and more." />
+<title>Download IlmCore AI for Android, Windows and iPhone</title>
+<meta name="description" content="Download the free IlmCore AI app for Android, Windows or iPhone. Chat, generate images, read files, search the web and more." />
 <link rel="icon" href="assets/logo.png" type="image/png" />
 <link rel="manifest" href="/manifest.webmanifest" />
 <meta name="theme-color" content="#05070d" />
@@ -48,6 +48,20 @@ ol.steps{margin-left:20px;display:grid;gap:8px;font-size:14.5px;line-height:1.55
 .note{margin-top:14px;font-size:13px;color:#8e98bf;line-height:1.55}
 .error{display:none;margin-top:14px;padding:12px 14px;border-radius:12px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#fecaca;font-size:14px;text-align:left}
 .error.show{display:block}
+
+.choose h1{margin-bottom:8px}
+.os-grid{display:grid;gap:10px;margin-top:20px}
+.os{position:relative;display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:14px 16px;color:#eef1f8;font-family:inherit;cursor:pointer;transition:border-color .15s,background .15s,transform .15s}
+.os:hover,.os:focus-visible{border-color:#8b5cf6;background:rgba(139,92,246,.12);outline:none;transform:translateY(-1px)}
+.os .ico{font-size:28px;line-height:1}
+.os b{display:block;font-size:16px;color:#fff}
+.os small{display:block;color:#aab3d6;font-size:13px;margin-top:2px}
+.os .tag{position:absolute;right:12px;top:12px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;background:linear-gradient(135deg,#5b8cff,#8b5cf6);color:#fff}
+.os .tag[hidden]{display:none}
+.panel[hidden]{display:none}
+.change{display:inline-block;margin-top:16px;background:none;border:0;color:#a5b4fc;font-size:14px;font-family:inherit;cursor:pointer;text-decoration:underline}
+.ios-steps{margin:18px 0 6px;text-align:left}
+.install[hidden]{display:none}
 @media (prefers-reduced-motion:reduce){.ring .fg{transition:none}}
 </style>
 </head>
@@ -59,26 +73,57 @@ ol.steps{margin-left:20px;display:grid;gap:8px;font-size:14.5px;line-height:1.55
   </div>
 
   <section class="card" aria-live="polite">
-    <h1>IlmCore AI for Android</h1>
-    <p class="sub">Free. No account needed to install. Your download starts automatically.</p>
 
-    <div class="count-wrap">
-      <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
-        <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b8cff"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs>
-        <circle class="bg" cx="60" cy="60" r="52"/>
-        <circle class="fg" id="fg" cx="60" cy="60" r="52"/>
-      </svg>
-      <div class="num" id="num">3</div>
+    <!-- Step 1: ask which device -->
+    <div class="panel choose" id="p-choose">
+      <h1>Download IlmCore AI</h1>
+      <p class="sub">Free. Which device do you have?</p>
+      <div class="os-grid">
+        <button class="os" type="button" data-os="android"><span class="ico">🤖</span><span><b>Android</b><small>Phone or tablet, downloads the APK</small></span><span class="tag" hidden>Your device</span></button>
+        <button class="os" type="button" data-os="windows"><span class="ico">🪟</span><span><b>Windows</b><small>PC or laptop, downloads the EXE</small></span><span class="tag" hidden>Your device</span></button>
+        <button class="os" type="button" data-os="iphone"><span class="ico">🍎</span><span><b>iPhone</b><small>iPhone or iPad, install from Safari</small></span><span class="tag" hidden>Your device</span></button>
+      </div>
     </div>
-    <div class="status" id="status">Download starts in 3…</div>
 
-    <div class="btns">
-      <button class="btn btn-primary" id="now" type="button">Download now</button>
-      <button class="btn btn-ghost" id="cancel" type="button">Cancel</button>
-      <a class="btn btn-primary" id="again" href="/ilmcoreai.apk" download="IlmCoreAI.apk" hidden>Download again</a>
+    <!-- Android / Windows: countdown + download -->
+    <div class="panel" id="p-dl" hidden>
+      <h1 id="dl-title">IlmCore AI for Android</h1>
+      <p class="sub">Free. No account needed to install. Your download starts automatically.</p>
+
+      <div class="count-wrap">
+        <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+          <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b8cff"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs>
+          <circle class="bg" cx="60" cy="60" r="52"/>
+          <circle class="fg" id="fg" cx="60" cy="60" r="52"/>
+        </svg>
+        <div class="num" id="num">3</div>
+      </div>
+      <div class="status" id="status">Download starts in 3…</div>
+
+      <div class="btns">
+        <button class="btn btn-primary" id="now" type="button">Download now</button>
+        <button class="btn btn-ghost" id="cancel" type="button">Cancel</button>
+        <a class="btn btn-primary" id="again" href="#" download hidden>Download again</a>
+      </div>
+      <div class="error" id="error"></div>
+      <button class="change" type="button" data-change>Not your device? Choose again</button>
+      <noscript><p class="note">JavaScript is off. Android: <a style="color:#a5b4fc" href="/ilmcoreai.apk" download>download the APK</a>. Windows: <a style="color:#a5b4fc" href="https://www.dropbox.com/scl/fi/aibp8khqgut120ganhukg/Ilmcore.exe?rlkey=bj6wa7vbf4bp59nnzhbl00d13&amp;st=02ygons6&amp;dl=1">download the EXE</a>.</p></noscript>
     </div>
-    <div class="error" id="error">The app file isn't available yet. Please try again in a little while, or use IlmCore AI in your browser instead.</div>
-    <noscript><p class="note">JavaScript is off. <a style="color:#a5b4fc" href="/ilmcoreai.apk" download>Tap here to download the app.</a></p></noscript>
+
+    <!-- iPhone: install steps -->
+    <div class="panel" id="p-ios" hidden>
+      <h1>IlmCore AI for iPhone</h1>
+      <p class="sub">Free. There is nothing to download. Install it from Safari in three taps.</p>
+      <ol class="steps ios-steps">
+        <li>Open IlmCore AI in <b>Safari</b> (it must be Safari, not Chrome).</li>
+        <li>Tap the <b>Share</b> button (the square with an arrow) at the bottom of the screen.</li>
+        <li>Scroll down, tap <b>Add to Home Screen</b>, then tap <b>Add</b>.</li>
+      </ol>
+      <div class="btns" style="margin-top:14px">
+        <a class="btn btn-primary" href="/index.html">Open IlmCore AI</a>
+      </div>
+      <button class="change" type="button" data-change>Not your device? Choose again</button>
+    </div>
   </section>
 
   <section class="section">
@@ -94,25 +139,55 @@ ol.steps{margin-left:20px;display:grid;gap:8px;font-size:14.5px;line-height:1.55
     </ul>
   </section>
 
-  <section class="section">
-    <h2>How to install</h2>
+  <section class="section install" id="i-android" hidden>
+    <h2>How to install on Android</h2>
     <ol class="steps">
       <li>When the download finishes, tap the notification or open <b>Downloads</b> and tap <b>IlmCoreAI.apk</b>.</li>
       <li>If Android asks, tap <b>Settings</b> and allow your browser to <b>install unknown apps</b>, then go back.</li>
       <li>Tap <b>Install</b>. If Play Protect shows a warning, tap <b>More details → Install anyway</b>. The app isn't from the Play Store.</li>
       <li>Open <b>IlmCore AI</b> and sign in or create a free account.</li>
     </ol>
-    <p class="note">Android only. On iPhone, open IlmCore AI in Safari, tap Share, then <b>Add to Home Screen</b>.</p>
+  </section>
+
+  <section class="section install" id="i-windows" hidden>
+    <h2>How to install on Windows</h2>
+    <ol class="steps">
+      <li>When the download finishes, open your <b>Downloads</b> folder and double-click <b>Ilmcore.exe</b>.</li>
+      <li>If Windows shows <b>Windows protected your PC</b>, click <b>More info → Run anyway</b>. The app isn't from the Microsoft Store.</li>
+      <li>Follow the installer, then open <b>IlmCore AI</b> from the Start menu and sign in or create a free account.</li>
+    </ol>
+    <p class="note">Prefer no download? Open IlmCore AI in Edge or Chrome and click the <b>Install</b> icon in the address bar.</p>
   </section>
 </main>
 
 <script>
 (function () {
-  var APK = '/ilmcoreai.apk', FILE = 'IlmCoreAI.apk', START = 3;
-  var n = START, timer = null, started = false;
-  var num = document.getElementById('num'), status = document.getElementById('status'), fg = document.getElementById('fg');
-  var nowBtn = document.getElementById('now'), cancelBtn = document.getElementById('cancel'), again = document.getElementById('again'), err = document.getElementById('error');
-  var C = 326.7;
+  var TARGETS = {
+    android: { file: '/ilmcoreai.apk',          name: 'IlmCoreAI.apk',       title: 'IlmCore AI for Android',
+               missing: "The app file isn't available yet. Please try again in a little while, or use IlmCore AI in your browser instead." },
+    windows: { file: 'https://www.dropbox.com/scl/fi/aibp8khqgut120ganhukg/Ilmcore.exe?rlkey=bj6wa7vbf4bp59nnzhbl00d13&st=02ygons6&dl=1', name: 'Ilmcore.exe', external: true, title: 'IlmCore AI for Windows',
+               missing: "The Windows installer isn't available yet. You can still use IlmCore AI in your browser, or open it in Edge or Chrome and click Install in the address bar." }
+  };
+  var START = 3, C = 326.7;
+  var n = START, timer = null, started = false, cur = null;
+
+  function $(id) { return document.getElementById(id); }
+  var pChoose = $('p-choose'), pDl = $('p-dl'), pIos = $('p-ios');
+  var num = $('num'), status = $('status'), fg = $('fg'), title = $('dl-title');
+  var nowBtn = $('now'), cancelBtn = $('cancel'), again = $('again'), err = $('error');
+
+  function showOnly(panel) {
+    [pChoose, pDl, pIos].forEach(function (p) { p.hidden = (p !== panel); });
+    ['android', 'windows'].forEach(function (k) { $('i-' + k).hidden = true; });
+  }
+
+  function detect() {
+    var ua = navigator.userAgent || '';
+    if (/android/i.test(ua)) return 'android';
+    if (/iphone|ipad|ipod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'iphone';
+    if (/windows/i.test(ua)) return 'windows';
+    return null;
+  }
 
   function render() {
     num.textContent = n;
@@ -124,33 +199,70 @@ ol.steps{margin-left:20px;display:grid;gap:8px;font-size:14.5px;line-height:1.55
     if (n <= 0) { clearInterval(timer); start(); return; }
     render();
   }
+
   async function start() {
-    if (started) return; started = true;
+    if (started || !cur) return; started = true;
     clearInterval(timer);
+    var t = TARGETS[cur];
     nowBtn.hidden = true; cancelBtn.hidden = true;
     num.textContent = '⬇'; num.classList.add('small'); fg.style.strokeDashoffset = '0';
     status.textContent = 'Starting your download…';
     try {
-      var r = await fetch(APK, { method: 'HEAD', cache: 'no-store' });
+      if (!t.external) {
+      var r = await fetch(t.file, { method: 'HEAD', cache: 'no-store' });
       var ct = r.headers.get('content-type') || '';
       if (!r.ok || ct.indexOf('text/html') !== -1) throw new Error('missing');
+      }
     } catch (e) {
       num.textContent = '!'; status.textContent = 'Download unavailable';
-      err.classList.add('show'); nowBtn.hidden = false; nowBtn.textContent = 'Try again'; started = false;
+      err.textContent = t.missing; err.classList.add('show');
+      nowBtn.hidden = false; nowBtn.textContent = 'Try again'; started = false;
       return;
     }
     var a = document.createElement('a');
-    a.href = APK; a.download = FILE; document.body.appendChild(a); a.click(); a.remove();
+    a.href = t.file; a.download = t.name; document.body.appendChild(a); a.click(); a.remove();
     num.textContent = '✓';
     status.textContent = 'Download started. Check your notifications or Downloads.';
-    again.hidden = false;
+    again.href = t.file; again.setAttribute('download', t.name); again.hidden = false;
   }
+
+  function choose(os) {
+    clearInterval(timer);
+    if (os === 'iphone') { showOnly(pIos); return; }
+    cur = os; started = false; n = START;
+    var t = TARGETS[os];
+    title.textContent = t.title;
+    err.classList.remove('show');
+    num.classList.remove('small');
+    nowBtn.hidden = false; nowBtn.textContent = 'Download now';
+    cancelBtn.hidden = false; again.hidden = true;
+    showOnly(pDl);
+    $('i-' + os).hidden = false;
+    render();
+    timer = setInterval(tick, 1000);
+  }
+
+  function reset() {
+    clearInterval(timer); started = false; cur = null;
+    showOnly(pChoose);
+  }
+
+  document.querySelectorAll('.os').forEach(function (b) {
+    b.addEventListener('click', function () { choose(b.getAttribute('data-os')); });
+  });
+  document.querySelectorAll('[data-change]').forEach(function (b) { b.addEventListener('click', reset); });
   nowBtn.addEventListener('click', function () { err.classList.remove('show'); start(); });
   cancelBtn.addEventListener('click', function () {
     clearInterval(timer); status.textContent = 'Download cancelled.'; cancelBtn.hidden = true; nowBtn.textContent = 'Download now';
   });
-  render();
-  timer = setInterval(tick, 1000);
+
+  // Highlight the visitor's own device (they still choose themselves)
+  var guess = detect();
+  if (guess) {
+    var btn = document.querySelector('.os[data-os="' + guess + '"]');
+    if (btn) { btn.querySelector('.tag').hidden = false; pChoose.querySelector('.os-grid').prepend(btn); }
+  }
+  showOnly(pChoose);
 })();
 </script>
 </body>
